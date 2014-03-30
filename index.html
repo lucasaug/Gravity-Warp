@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Jogo</title>
+        <script type="text/javascript">
+            
+            function Vector(x,y){
+                this.x = x;
+                this.y = y;
+
+                this.addTo = function(vec){
+                    this.x += vec.x;
+                    this.y += vec.y;
+                };
+
+                this.subtractFrom = function(vec){
+                    this.x -= vec.x;
+                    this.y -= vec.y;
+                };
+
+                this.multiplyBy = function(scalar){
+                    this.x *= scalar;
+                    this.y *= scalar;
+                };
+
+                this.divideBy = function(scalar){
+                    this.multiplyBy(1/scalar);
+                };
+
+                this.rotateBy = function(angle){
+                    var currentAng = this.getAngle();
+                    this.setAngle(currentAng + angle);
+                }
+
+                this.add = function(vec){
+                    return new Vector(this.x + vec.x, this.y + vec.y);
+                };
+
+                this.subtract = function(vec){
+                    return new Vector(this.x - vec.x, this.y - vec.y);
+                };
+
+                this.multiply = function(scalar){
+                    return new Vector(this.x * scalar, this.y * scalar);
+                };
+
+                this.divide = function(scalar){
+                    return this.multiply(1/scalar);
+                };
+
+                this.rotate = function(angle){
+                    var result = this;
+                    result.rotateBy(angle);
+                    return result;
+                }
+
+                this.setAngle = function(angle) {
+                    var length = this.getLength();
+                    this.x = Math.cos(angle) * length;
+                    this.y = Math.sin(angle) * length;
+                };
+
+                this.getAngle = function() {
+                    return Math.atan2(this.y, this.x);
+                };
+
+                this.setLength = function(length) {
+                    var angle = this.getAngle();
+                    this.x = Math.cos(angle) * length;
+                    this.y = Math.sin(angle) * length;
+                };
+
+                this.getLength = function() {
+                    return Math.sqrt(this.x * this.x + this.y * this.y);
+                };
+
+                this.getUnit = function() {
+                    return this.divide(this.getLength());
+                };
+
+                this.xComponent = function(){
+                    return new Vector(this.x,0);
+                };
+
+                this.yComponent = function(){
+                    return new Vector(0,this.y);
+                };
+            };
+
+            function Game(player,canvas,x,y,width,height){
+                this.width        = width - 2*x;
+                this.height       = height - 2*y;
+                this.player       = player;
+                this.canvas       = canvas;
+                this.ctx          = canvas.getContext('2d');
+                this.gameStarted  = false;
+                this.leftPressed  = false;
+                this.rightPressed = false;
+                this.upPressed    = false;
+                this.lastDraw     = 0;
+                this.frameUpdate  = 13; // miliseconds between each frame
+                this.playerSpeed  = 1;
+                this.jumpSpeed    = 20;
+                this.gravity      = new Vector(0,1);
+                this.currentGDir  = new Vector(1,1);
+                this.gravAngSpd   = Math.PI/360;
+
+                this.x = x;
+                this.y = y;
+
+                this.startGame = function(){
+                    var self = this;
+                    window.onkeydown = function(e){
+                        if(e.keyCode == 37 || e.keyCode == 65) self.leftPressed = true;
+                        if(e.keyCode == 38 || e.keyCode == 87) self.upPressed = true;
+                        if(e.keyCode == 39 || e.keyCode == 68) self.rightPressed = true;
+                    };
+                    window.onkeyup = function(e){
+                        if(e.keyCode == 37 || e.keyCode == 65) self.leftPressed = false;
+                        if(e.keyCode == 38 || e.keyCode == 87) self.upPressed = false;
+                        if(e.keyCode == 39 || e.keyCode == 68) self.rightPressed = false;
+                    };
+                    this.gameStarted = true;
+
+                    this.step();
+                };
+
+                this.step = function(){
+                    var elapsed = Date.now() - this.lastDraw;
+                    if(elapsed > this.frameUpdate){
+                        this.update();
+                        this.draw(this.ctx);
+                        this.lastDraw = Date.now();
+                    }
+                    if(this.gameStarted) requestAnimationFrame(this.step.bind(this));
+                };
+
+                this.update = function(){
+                    // stops jumping if player hit the ceiling
+                    var vel = { x: this.player.velocity.x, y: this.player.velocity.y },
+                        gravDir = this.gravityDirection();
+
+                    var groundDir = new Vector(this.playerGroundXDir(gravDir),
+                                               this.playerGroundYDir(gravDir));
+
+                    if(this.playerInCeiling()){
+                        if((-1*gravDir.x > 0 && vel.x > 0) || (-1*gravDir.x < 0 && vel.x < 0))
+                            this.player.stop({x:1});
+                        if((-1*gravDir.y > 0 && vel.y > 0) || (-1*gravDir.y < 0 && vel.y < 0))
+                            this.player.stop({y:1});
+                    };
+                    if(this.playerInGround()){
+                        if(groundDir.x != 0 && groundDir.y != 0)
+                            this.currentGDir = new Vector(0,0);
+                        else if(groundDir.x != 0){
+                            this.currentGDir.x = 0;
+                            this.currentGDir.y = 1;
+                        }else{
+                            this.currentGDir.x = 1;
+                            this.currentGDir.y = 0;
+                        }
+
+                        if((gravDir.x > 0 && vel.x > 0) || (gravDir.x < 0 && vel.x < 0))
+                            this.player.stop({x:1});
+                        if((gravDir.y > 0 && vel.y > 0) || (gravDir.y < 0 && vel.y < 0))
+                            this.player.stop({y:1});
+
+                    }else if(this.currentGDir.x == 0 || this.currentGDir.y == 0){
+                        this.currentGDir = new Vector(1,1);
+                    }
+                    // apply gravity
+
+                    this.player.addGrav(this.gravity, this.currentGDir);
+
+                    // moving the player left/right and jumping
+                    var movement = new Vector(0,0);
+                    if(this.leftPressed){
+                        if(this.playerInGround())
+                            movement = this.gravity.getUnit().multiply(-10 * this.playerSpeed).rotate(-1 * Math.PI/2);
+                        else
+                            movement = this.gravity.getUnit().multiply(-1 * this.playerSpeed).rotate(-1 * Math.PI/2);
+                    }
+                    if(this.rightPressed){
+                        if(this.playerInGround())
+                            movement = this.gravity.getUnit().multiply(-10 * this.playerSpeed).rotate(Math.PI/2);
+                        else
+                            movement = this.gravity.getUnit().multiply(-1 * this.playerSpeed).rotate(Math.PI/2);
+                    }
+                    if(this.upPressed && this.playerInGround())
+                        this.player.jump(this.jumpSpeed, this.gravity.getUnit());
+
+                    this.gravity.rotateBy(this.gravAngSpd);
+                    this.movePlayer(movement);
+                    this.player.update();
+
+                    var inFieldX = this.entityInFieldX(this.player);
+                    if(inFieldX != 0){
+                        if(inFieldX > 0){
+                            this.player.position.x = this.x + this.width - this.player.size;
+                        }else{
+                            this.player.position.x = this.x;
+                        }
+                    }
+
+                    var inFieldY = this.entityInFieldY(this.player);
+                    if(inFieldY != 0){
+                        if(inFieldY > 0){
+                            this.player.position.y = this.y + this.height - this.player.size;
+                        }else{
+                            this.player.position.y = this.y;
+                        }
+                    }
+                };
+
+                this.movePlayer = function(quant){
+                    this.player.accel(quant);
+                    //this.player.position.addTo(quant);
+                };
+
+                this.gravityDirection = function(){
+                    var xDir = 0;
+                    if(this.gravity.x > 0){
+                        xDir = 1;
+                    }else if(this.gravity.x < 0){
+                        xDir = -1;
+                    }
+                    var yDir = 0;
+                    if(this.gravity.y > 0){
+                        yDir = 1;
+                    }else if(this.gravity.y < 0){
+                        yDir = -1;
+                    }
+                    return new Vector(xDir,yDir);
+                };
+
+                this.playerGroundXDir = function(gravDir){
+                    if(gravDir.x > 0){
+                        if(this.x + this.width == this.player.position.x + this.player.size)
+                           return 1;
+                    }
+                    if(gravDir.x < 0){
+                        if(this.x == this.player.position.x)
+                           return -1;
+                    }
+                    return 0;
+                };
+
+                this.playerGroundYDir = function(gravDir){
+                    if(gravDir.y > 0){
+                        if(this.y + this.height == this.player.position.y + this.player.size)
+                           return 1;
+                    }
+                    if(gravDir.y < 0){
+                        if(this.y == this.player.position.y)
+                           return -1;
+                    }
+                    return 0;
+                };
+
+                this.playerInGround = function(){
+                    var gravDir = this.gravityDirection();
+
+                    var groundDir = {
+                        x: this.playerGroundXDir(gravDir),
+                        y: this.playerGroundYDir(gravDir)
+                    };
+                    if(groundDir.x != 0 || groundDir.y != 0){
+                        return true;
+                    }
+
+                    return false;
+                };
+
+                this.playerInCeiling = function(){
+                    var jumpDir = this.gravityDirection();
+                    jumpDir.multiplyBy(-1);
+
+                    if(jumpDir.x > 0){
+                        if(this.x + this.width == this.player.position.x + this.player.size)
+                           return true;
+                    }
+                    if(jumpDir.x < 0){
+                        if(this.x == this.player.position.x)
+                           return true;
+                    }
+                    if(jumpDir.y > 0){
+                        if(this.y + this.height == this.player.position.y + this.player.size)
+                           return true;
+                    }
+                    if(jumpDir.y < 0){
+                        if(this.y == this.player.position.y)
+                           return true;
+                    }
+                    return false;
+                };
+
+                this.draw = function(ctx){
+                    ctx.save();
+                    ctx.fillStyle = "#00FF00";
+                    ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+                    ctx.translate(this.canvas.width/2, this.canvas.height/2);
+                    ctx.rotate(-1*this.gravity.getAngle() + Math.PI/2);
+                    ctx.translate(-1*this.canvas.width/2, -1*this.canvas.height/2);
+                    ctx.fillStyle = "#000000";
+                    ctx.fillRect(this.x,this.y,this.canvas.width-2*this.x,this.canvas.height-2*this.y);
+
+                    this.player.draw(ctx);
+                    ctx.restore();
+                }
+
+                this.entityInFieldX = function(sqentity){
+                    var xMin = Math.min(sqentity.position.x, sqentity.position.x + sqentity.size),
+                        xMax = Math.max(sqentity.position.x, sqentity.position.x + sqentity.size);
+                    if(xMin > this.x && xMax < this.x + this.width){
+                        return 0
+                    }else if(xMin <= this.x){
+                        return -1;
+                    }else{
+                        return 1;
+                    }
+                };
+
+                this.entityInFieldY = function(sqentity){
+                    var yMin = Math.min(sqentity.position.y, sqentity.position.y + sqentity.size),
+                        yMax = Math.max(sqentity.position.y, sqentity.position.y + sqentity.size);
+                    if(yMin > this.y && yMax < this.y + this.height){
+                        return 0
+                    }else if(yMin <= this.y){
+                        return -1;
+                    }else{
+                        return 1;
+                    }
+                };
+            }
+
+            function SQEntity(x,y,size){
+                this.position = new Vector(x,y);
+                this.size = size;
+
+                this.collidingWith = function(sqentity){
+                    var minBoundThis = {
+                            x: Math.min(this.x, this.x + this.size),
+                            y: Math.min(this.y, this.y + this.size)
+                        },
+                        maxBoundThis = {
+                            x: Math.max(this.x, this.x + this.size),
+                            y: Math.max(this.y, this.y + this.size)
+                        },
+                        minBoundOther = {
+                            x: Math.min(sqentity.x, sqentity.x + sqentity.size),
+                            y: Math.min(sqentity.y, sqentity.y + sqentity.size)
+                        },
+                        maxBoundOther = {
+                            x: Math.max(sqentity.x, sqentity.x + sqentity.size),
+                            y: Math.max(sqentity.y, sqentity.y + sqentity.size)
+                        },
+                        intersectX = minBoundThis.x < maxBoundOther.x && maxBoundThis.x > minBoundOther.x;
+                        intersectY = minBoundThis.y < maxBoundOther.y && maxBoundThis.y > minBoundOther.y;
+
+                        if(intersectX && intersectY)
+                            return true;
+                        else
+                            return false;
+                };
+            };
+
+            function Player(x,y,size){
+                this.prototype = SQEntity.prototype;
+                
+                SQEntity.call(this,x,y,size);
+
+                this.velocity  = new Vector(0,0);
+
+                this.update = function(){
+                    this.position.addTo(this.velocity);
+                }
+
+                this.accel = function(amount){
+                    this.velocity.addTo(amount);
+                }
+
+                this.jump = function(jumpSpeed, gravDir){
+                    var quant = gravDir.multiply(-1) || new Vector(0,-1);
+                    quant.multiplyBy(jumpSpeed);
+                    this.accel(quant);
+                }
+
+                this.addGrav = function(gravity, dir){
+                    var direction = dir || {x: 1, y: 1};
+                    if(direction.x != 0 && direction.y != 0)
+                        this.accel(gravity);
+                    else if(direction.x != 0)
+                        this.accel(gravity.xComponent());
+                    else if(direction.y != 0)
+                        this.accel(gravity.yComponent());
+
+                };
+
+                this.stop = function(direction){
+                    if(direction.x != 0)
+                        this.velocity.x = 0;
+                    if(direction.y != 0)
+                        this.velocity.y = 0;
+                };
+
+                this.draw = function(ctx){
+                    var lastFill   = ctx.fillStyle,
+                        lastStroke = ctx.strokeStyle;
+                    ctx.fillStyle = "#FF0000";
+                    ctx.strokeStyle = "#000000";
+                    ctx.fillRect(this.position.x, this.position.y, this.size, this.size);
+                    ctx.fillStyle = lastFill;
+                    ctx.strokeStyle = lastStroke;
+                };
+            }
+
+            function main(){
+                var canvas = document.getElementById("game");
+
+                var f = new Game(new Player(350,450,50),canvas,100,100,canvas.width,canvas.height);
+                f.startGame();
+            }
+
+            window.onload = main;
+        </script>
+    </head>
+    <body>
+        <canvas width="600" height="600" id="game"></canvas>
+    </body>
+</html>
