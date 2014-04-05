@@ -4,6 +4,21 @@
         <title>Jogo</title>
         <script type="text/javascript">
             
+            // Vector class with the following operations implemented:
+
+            // - addition
+            // - subtraction
+            // - multiplication
+            // - division
+
+            // all these functions have two implementations: one that changes
+            // the vector in which the operation is applied, and other that
+            // returns the a new vector which is the result of the operation
+
+            // also implements getters and setters for angle and length
+            // has functions for rotation, getting the unit length vector,
+            // and getting x and y component vectors of another vector
+
             function Vector(x,y){
                 this.x = x;
                 this.y = y;
@@ -87,29 +102,44 @@
                 };
             };
 
+            // Game class which does the actual game logic
+            // and integrates the other bits with the inputs
+
             function Game(player,canvas,x,y,width,height){
+
+                // width and height are relative to the playing field, not the whole canvas
                 this.width        = width - 2*x;
                 this.height       = height - 2*y;
+                // for now player is sent straight from the main function, maybe change it?
                 this.player       = player;
                 this.canvas       = canvas;
                 this.ctx          = canvas.getContext('2d');
+                // flags for detecting if the game is in a menu or not, and for arrow key presses
                 this.gameStarted  = false;
                 this.leftPressed  = false;
                 this.rightPressed = false;
                 this.upPressed    = false;
+                // last frame draw timestamp
                 this.lastDraw     = 0;
-                this.frameUpdate  = 13; // miliseconds between each frame
+                // constant for determining framerate, milliseconds between each frame
+                this.frameUpdate  = 13;
+                // distance travelled by player when walking or jumping
                 this.playerSpeed  = 1;
                 this.jumpSpeed    = 20;
+                // gravity force
                 this.gravity      = new Vector(0,1);
+                // current directions which would make sense calling 'ground'
                 this.currentGDir  = new Vector(1,1);
-                this.gravAngSpd   = Math.PI/360;
+                // constant for speed of gravity rotation
+                this.gravAngSpd   = Math.PI/720;
 
+                // position on the canvas, upper left edge
                 this.x = x;
                 this.y = y;
 
                 this.startGame = function(){
                     var self = this;
+                    // sets event handlers, the gameStarted flag and starts the first iteration
                     window.onkeydown = function(e){
                         if(e.keyCode == 37 || e.keyCode == 65) self.leftPressed = true;
                         if(e.keyCode == 38 || e.keyCode == 87) self.upPressed = true;
@@ -126,6 +156,9 @@
                 };
 
                 this.step = function(){
+                    // calculates if it's been enough time for a new frame to be drawn
+                    // if it is, updates the physics and draws the frame, else
+                    // requests another step
                     var elapsed = Date.now() - this.lastDraw;
                     if(elapsed > this.frameUpdate){
                         this.update();
@@ -136,19 +169,22 @@
                 };
 
                 this.update = function(){
-                    // stops jumping if player hit the ceiling
-                    var vel = { x: this.player.velocity.x, y: this.player.velocity.y },
+                    var vel = { x: this.player.velocity.x,
+                                y: this.player.velocity.y },
                         gravDir = this.gravityDirection();
 
                     var groundDir = new Vector(this.playerGroundXDir(gravDir),
                                                this.playerGroundYDir(gravDir));
 
+                    // stops jumping if player hit the ceiling
                     if(this.playerInCeiling()){
                         if((-1*gravDir.x > 0 && vel.x > 0) || (-1*gravDir.x < 0 && vel.x < 0))
                             this.player.stop({x:1});
                         if((-1*gravDir.y > 0 && vel.y > 0) || (-1*gravDir.y < 0 && vel.y < 0))
                             this.player.stop({y:1});
                     };
+                    // stops gravity and velocities from acting in the ground direction if player
+                    // is in ground
                     if(this.playerInGround()){
                         if(groundDir.x != 0 && groundDir.y != 0)
                             this.currentGDir = new Vector(0,0);
@@ -164,35 +200,31 @@
                             this.player.stop({x:1});
                         if((gravDir.y > 0 && vel.y > 0) || (gravDir.y < 0 && vel.y < 0))
                             this.player.stop({y:1});
-
                     }else if(this.currentGDir.x == 0 || this.currentGDir.y == 0){
                         this.currentGDir = new Vector(1,1);
                     }
-                    // apply gravity
 
+                    // apply gravity
                     this.player.addGrav(this.gravity, this.currentGDir);
 
                     // moving the player left/right and jumping
                     var movement = new Vector(0,0);
-                    if(this.leftPressed){
-                        if(this.playerInGround())
-                            movement = this.gravity.getUnit().multiply(-10 * this.playerSpeed).rotate(-1 * Math.PI/2);
-                        else
-                            movement = this.gravity.getUnit().multiply(-1 * this.playerSpeed).rotate(-1 * Math.PI/2);
-                    }
-                    if(this.rightPressed){
-                        if(this.playerInGround())
-                            movement = this.gravity.getUnit().multiply(-10 * this.playerSpeed).rotate(Math.PI/2);
-                        else
-                            movement = this.gravity.getUnit().multiply(-1 * this.playerSpeed).rotate(Math.PI/2);
-                    }
+                    if(this.leftPressed)
+                        movement = this.gravity.getUnit().multiply(-1 * this.playerSpeed).rotate(-1 * Math.PI/2);
+                    if(this.rightPressed)
+                        movement = this.gravity.getUnit().multiply(-1 * this.playerSpeed).rotate(Math.PI/2);
+
                     if(this.upPressed && this.playerInGround())
                         this.player.jump(this.jumpSpeed, this.gravity.getUnit());
 
+                    // does gravity rotation all the time
+                    // (gonna take this off, only rotate every now and then)
                     this.gravity.rotateBy(this.gravAngSpd);
+                    // moves player and applies velocity
                     this.movePlayer(movement);
                     this.player.update();
 
+                    // limits player bounds
                     var inFieldX = this.entityInFieldX(this.player);
                     if(inFieldX != 0){
                         if(inFieldX > 0){
@@ -212,11 +244,12 @@
                     }
                 };
 
+                // interface for moving the player
                 this.movePlayer = function(quant){
                     this.player.accel(quant);
-                    //this.player.position.addTo(quant);
                 };
 
+                // detects in which components the gravity is acting
                 this.gravityDirection = function(){
                     var xDir = 0;
                     if(this.gravity.x > 0){
@@ -233,6 +266,8 @@
                     return new Vector(xDir,yDir);
                 };
 
+                // detects what is the x direction of the player's ground, if it is in a ground
+                // else returns 0
                 this.playerGroundXDir = function(gravDir){
                     if(gravDir.x > 0){
                         if(this.x + this.width == this.player.position.x + this.player.size)
@@ -245,6 +280,7 @@
                     return 0;
                 };
 
+                // same for y
                 this.playerGroundYDir = function(gravDir){
                     if(gravDir.y > 0){
                         if(this.y + this.height == this.player.position.y + this.player.size)
@@ -257,6 +293,7 @@
                     return 0;
                 };
 
+                // detects if player is in any ground
                 this.playerInGround = function(){
                     var gravDir = this.gravityDirection();
 
@@ -271,6 +308,7 @@
                     return false;
                 };
 
+                // detects if player is in any ceiling
                 this.playerInCeiling = function(){
                     var jumpDir = this.gravityDirection();
                     jumpDir.multiplyBy(-1);
@@ -295,6 +333,7 @@
                 };
 
                 this.draw = function(ctx){
+                    // simple drawing, for test purposes
                     ctx.save();
                     ctx.fillStyle = "#00FF00";
                     ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
@@ -308,6 +347,7 @@
                     ctx.restore();
                 }
 
+                // detects if an entity is within the X range of the game
                 this.entityInFieldX = function(sqentity){
                     var xMin = Math.min(sqentity.position.x, sqentity.position.x + sqentity.size),
                         xMax = Math.max(sqentity.position.x, sqentity.position.x + sqentity.size);
@@ -320,6 +360,7 @@
                     }
                 };
 
+                // detects if an entity is within the Y range of the game
                 this.entityInFieldY = function(sqentity){
                     var yMin = Math.min(sqentity.position.y, sqentity.position.y + sqentity.size),
                         yMax = Math.max(sqentity.position.y, sqentity.position.y + sqentity.size);
@@ -333,10 +374,13 @@
                 };
             }
 
+            // implementation of a square shaped entity, on top of which
+            // the player, enemies and points will be built
             function SQEntity(x,y,size){
                 this.position = new Vector(x,y);
                 this.size = size;
 
+                // detects if this entity is colliding with another entity
                 this.collidingWith = function(sqentity){
                     var minBoundThis = {
                             x: Math.min(this.x, this.x + this.size),
@@ -354,17 +398,19 @@
                             x: Math.max(sqentity.x, sqentity.x + sqentity.size),
                             y: Math.max(sqentity.y, sqentity.y + sqentity.size)
                         },
-                        intersectX = minBoundThis.x < maxBoundOther.x && maxBoundThis.x > minBoundOther.x;
+                        intersectX = minBoundThis.x < maxBoundOther.x && maxBoundThis.x > minBoundOther.x,
                         intersectY = minBoundThis.y < maxBoundOther.y && maxBoundThis.y > minBoundOther.y;
 
-                        if(intersectX && intersectY)
-                            return true;
-                        else
-                            return false;
+                    if(intersectX && intersectY)
+                        return true;
+                    else
+                        return false;
                 };
             };
 
+            // class for the player of the game
             function Player(x,y,size){
+                // inheritance
                 this.prototype = SQEntity.prototype;
                 
                 SQEntity.call(this,x,y,size);
@@ -375,16 +421,19 @@
                     this.position.addTo(this.velocity);
                 }
 
+                // accelerates the player by a vector
                 this.accel = function(amount){
                     this.velocity.addTo(amount);
                 }
 
+                // abstraction of a player jump
                 this.jump = function(jumpSpeed, gravDir){
                     var quant = gravDir.multiply(-1) || new Vector(0,-1);
                     quant.multiplyBy(jumpSpeed);
                     this.accel(quant);
                 }
 
+                // applies gravity
                 this.addGrav = function(gravity, dir){
                     var direction = dir || {x: 1, y: 1};
                     if(direction.x != 0 && direction.y != 0)
@@ -396,6 +445,7 @@
 
                 };
 
+                // stops player movement in a given direction
                 this.stop = function(direction){
                     if(direction.x != 0)
                         this.velocity.x = 0;
@@ -403,6 +453,7 @@
                         this.velocity.y = 0;
                 };
 
+                // draws the player in the correct positiom
                 this.draw = function(ctx){
                     var lastFill   = ctx.fillStyle,
                         lastStroke = ctx.strokeStyle;
