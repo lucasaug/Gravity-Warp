@@ -17,7 +17,8 @@
 
             // also implements getters and setters for angle and length
             // has functions for rotation, getting the unit length vector,
-            // and getting x and y component vectors of another vector
+            // getting x and y component vectors of another vector,
+            // dot products and projection onto another vector
 
             function Vector(x,y){
                 this.x = x;
@@ -45,7 +46,7 @@
                 this.rotateBy = function(angle){
                     var currentAng = this.getAngle();
                     this.setAngle(currentAng + angle);
-                }
+                };
 
                 this.add = function(vec){
                     return new Vector(this.x + vec.x, this.y + vec.y);
@@ -67,7 +68,7 @@
                     var result = this;
                     result.rotateBy(angle);
                     return result;
-                }
+                };
 
                 this.setAngle = function(angle) {
                     var length = this.getLength();
@@ -91,6 +92,15 @@
 
                 this.getUnit = function() {
                     return this.divide(this.getLength());
+                };
+
+                this.dot = function(vector){
+                    return this.x * vector.x + this.y * vector.y;
+                };
+
+                this.projectionOnto = function(vector){
+                    var result = this.dot(vector)/vector.getLength();
+                    return vector.getUnit().multiply(result);
                 };
 
                 this.xComponent = function(){
@@ -210,9 +220,15 @@
                     // moving the player left/right and jumping
                     var movement = new Vector(0,0);
                     if(this.leftPressed)
-                        movement = this.gravity.getUnit().multiply(-1 * this.playerSpeed).rotate(-1 * Math.PI/2);
+                        if(this.playerInGround())
+                            movement = this.gravity.getUnit().multiply(-5 * this.playerSpeed).rotate(-1 * Math.PI/2);
+                        else
+                            movement = this.gravity.getUnit().multiply(-0.5 * this.playerSpeed).rotate(-1 * Math.PI/2);
                     if(this.rightPressed)
-                        movement = this.gravity.getUnit().multiply(-1 * this.playerSpeed).rotate(Math.PI/2);
+                        if(this.playerInGround())
+                            movement = this.gravity.getUnit().multiply(-5 * this.playerSpeed).rotate(Math.PI/2);
+                        else
+                            movement = this.gravity.getUnit().multiply(-0.5 * this.playerSpeed).rotate(Math.PI/2);
 
                     if(this.upPressed && this.playerInGround())
                         this.player.jump(this.jumpSpeed, this.gravity.getUnit());
@@ -430,7 +446,9 @@
                 this.jump = function(jumpSpeed, gravDir){
                     var quant = gravDir.multiply(-1) || new Vector(0,-1);
                     quant.multiplyBy(jumpSpeed);
-                    this.accel(quant);
+                    if( (this.velocity.projectionOnto(quant).getLength() <= 0.1 && 
+                       this.velocity.dot(quant) > 0) || this.velocity.dot(quant) < 0)
+                        this.accel(quant);
                 }
 
                 // applies gravity
@@ -467,7 +485,9 @@
 
             function main(){
                 var canvas = document.getElementById("game");
-
+                var v= new Vector(1,1,1);
+                var y = new Vector(1,0,0);
+                console.log(v.projectionOnto(y));
                 var f = new Game(new Player(350,450,50),canvas,100,100,canvas.width,canvas.height);
                 f.startGame();
             }
