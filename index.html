@@ -113,10 +113,13 @@
             };
 
             // Game class which manages gamestates
-
-            function Game(canvas,x,y,width,height){
+            function Game(canvas,width){
                 this.width                = width;
-                this.height               = height;
+                this.height               = width;
+                // the x and y position of the field is calculated so it
+                // never surpasses the canvas, even when rotated
+                this.x                    = (width * (1 - Math.SQRT2))/(-2 * Math.SQRT2);
+                this.y                    = this.x;
                 this.currentGameStateName = null;
 
                 // list of existing gameStates
@@ -124,8 +127,8 @@
                 // onEnter, update and onExit
                 // (pretty self explanatory)
                 this.gameStates = {
-                    "menu"     : new MenuGameState(canvas, x, y, width, height),
-                    "playing"  : new PlayingGameState(canvas, x, y, width, height),
+                    "menu"     : new MenuGameState(canvas, this.x, this.y, this.width, this.height),
+                    "playing"  : new PlayingGameState(canvas, this.x, this.y, this.width, this.height),
                     "gameover" : null
                 };
 
@@ -141,7 +144,7 @@
                         if(this.currentGameStateName === "menu" || this.currentGameStateName === "gameover")
                             this.changeGameState("playing");
                         else if(this.currentGameStateName === "playing")
-                            this.changeGameState("playing");
+                            this.changeGameState("gameover");
                     }
                     requestAnimationFrame(this.update.bind(this));
                 };
@@ -174,8 +177,9 @@
                     var self = this;
 
                     // redefine function to avoid "this" issues
-                    this.detectInput = function(){
-                        self.startGame = true;
+                    this.detectInput = function(e){
+                        if(e.keyCode === 13)
+                            self.startGame = true;
                     };
 
                     // sets event handlers
@@ -228,16 +232,19 @@
                             "seconds survived as well as the number",
                             "of coins caught"
                         ],
-                        startTxt = "Press any key to start";
+                        startTxt = "Press Enter/Return to start";
 
-                    this.ctx.font = "50px Garamond";
+                    // fonts and line spacing are determined by the total canvas width
+                    // and height
+                    this.ctx.font = this.canvas.width * 0.08 +"px Garamond";
                     this.ctx.fillStyle = "rgba(0, 0, 0, " + this.bgAlpha + ")";
                     this.ctx.fillText(title, this.canvas.width * 0.25, this.canvas.height * 0.22 + 20);
-                    this.ctx.font = "20px Garamond";
+                    this.ctx.font = this.canvas.width * 0.03 +"px Garamond";
                     for(var i = 1; i < desc.length + 1; i++)
-                        this.ctx.fillText(desc[i-1],  this.canvas.width * 0.18, this.canvas.height * 0.2 + i * 30 + 80);
+                        this.ctx.fillText(desc[i-1],  this.canvas.width * 0.18, 
+                                    this.canvas.height * 0.2 + i * (0.05 * this.canvas.width) + (0.13 * this.canvas.width));
 
-                    this.ctx.font = "30px Garamond";
+                    this.ctx.font = this.canvas.width * 0.05 +"px Garamond";
                     this.ctx.fillStyle = "rgba(30, 0, 60, " + this.bgAlpha + ")";
                     this.ctx.fillText(startTxt, this.canvas.width * 0.2, this.canvas.height * 0.8);
 
@@ -266,7 +273,7 @@
                 this.height       = height - 2*y;
                 // sets a place for the player object
                 this.player       = null;
-                this.playerSize   = 50;
+                this.playerSize   = canvas.width*50/600;
                 this.canvas       = canvas;
                 this.ctx          = canvas.getContext('2d');
                 // flags for detecting arrow key presses (as well as wasd)
@@ -276,7 +283,7 @@
                 // last frame render timestamp
                 this.lastRender   = 0;
                 // constant for determining framerate, milliseconds between each frame
-                this.frameUpdate  = 10;
+                this.frameUpdate  = 5;
                 // distance travelled by player when walking or jumping
                 this.playerSpeed  = 1;
                 this.jumpSpeed    = 20;
@@ -593,6 +600,48 @@
                 };
             };
 
+
+            function Obstacle(x,y,size){
+                // inheritance
+                this.prototype = SQEntity.prototype;
+                
+                SQEntity.call(this,x,y,size);
+
+                // timestamp of the moment it was spawned
+                this.timeAlive = Date.now();
+
+                // if this variable is set to true, this obstacle
+                // must stay where it is and never unspawn
+                this.permanent = false;
+
+                this.draw = function(ctx){
+                    var lastFill   = ctx.fillStyle,
+                        lastStroke = ctx.strokeStyle;
+                    ctx.fillStyle = "#FFFFFFF";
+                    ctx.strokeStyle = "#000000";
+                    ctx.fillRect(this.position.x, this.position.y, this.size, this.size);
+                    ctx.fillStyle = lastFill;
+                    ctx.strokeStyle = lastStroke;
+                };
+            };
+
+            function ObstaclePool(){
+                this.obstacles = [];
+                this.obstSize  = 10;
+
+                this.addObstacle = function(newObstacle){
+                    this.obstacles.push(newObstacle);
+                };
+
+                this.spawn = function(width,height){
+                    // width and height refer to the field, not the canvas
+
+                    // first we determine in which ground the obstacle will be
+
+                };
+
+            };
+
             // class for the player of the game
             function Player(x,y,size){
                 // inheritance
@@ -659,18 +708,19 @@
                     ctx.fillStyle = lastFill;
                     ctx.strokeStyle = lastStroke;
                 };
-            }
+            };
 
             function main(){
                 var canvas = document.getElementById("game");
-                var f = new Game(canvas,100,100,canvas.width,canvas.height);
+                var f = new Game(canvas,canvas.width);
                 f.startGame();
-            }
+            };
 
             window.onload = main;
         </script>
     </head>
     <body>
+        <!-- Caution! Canvas width and height must be the same -->
         <canvas width="600" height="600" id="game"></canvas>
     </body>
 </html>
