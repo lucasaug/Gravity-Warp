@@ -112,27 +112,171 @@
                 };
             };
 
-            // Game class which does the actual game logic
-            // and integrates the other bits with the inputs
+            // Game class which manages gamestates
 
-            function Game(player,canvas,x,y,width,height){
+            function Game(canvas,x,y,width,height){
+                this.width                = width;
+                this.height               = height;
+                this.currentGameStateName = null;
 
+                // list of existing gameStates
+                // a gamestate must implement the following methods:
+                // onEnter, update and onExit
+                // (pretty self explanatory)
+                this.gameStates = {
+                    "menu"     : new MenuGameState(canvas, x, y, width, height),
+                    "playing"  : new PlayingGameState(canvas, x, y, width, height),
+                    "gameover" : null
+                };
+
+                this.startGame = function(){
+                    this.currentGameStateName = "menu";
+                    this.gameStates[this.currentGameStateName].onEnter();
+                    this.update();
+                }
+
+                this.update = function(){
+                    var shouldStop = this.gameStates[this.currentGameStateName].update();
+                    if(shouldStop){
+                        if(this.currentGameStateName === "menu" || this.currentGameStateName === "gameover")
+                            this.changeGameState("playing");
+                        else if(this.currentGameStateName === "playing")
+                            this.changeGameState("playing");
+                    }
+                    requestAnimationFrame(this.update.bind(this));
+                };
+
+                this.changeGameState = function(newGSName){
+                    this.gameStates[this.currentGameStateName].onExit();
+                    this.currentGameStateName = newGSName;
+                    this.gameStates[this.currentGameStateName].onEnter();
+                }
+            };
+
+            // Initial GameState, draws game menu
+            function MenuGameState(canvas, x, y, width, height){
+                this.width     = width  - 2*x;
+                this.height    = height - 2*y;
+                this.x         = x;
+                this.y         = y;
+                this.canvas    = canvas;
+                this.ctx       = canvas.getContext("2d");
+                this.angle     = 0;
+                this.rotSpd    = Math.PI/720;
+                this.bgAlpha   = 0.;
+                this.alphaStep = 0.01;
+                this.maxAlpha  = 0.6;
+                this.startGame = false;
+
+                this.detectInput = function(){};
+
+                this.onEnter = function(){
+                    var self = this;
+
+                    // redefine function to avoid "this" issues
+                    this.detectInput = function(){
+                        self.startGame = true;
+                    };
+
+                    // sets event handlers
+                    window.onkeydown = this.detectInput;
+                };
+
+                this.update = function(){
+                    this.ctx.save();
+                    this.ctx.fillStyle = "#300FC0";
+                    this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+                    this.ctx.translate(this.canvas.width/2, this.canvas.height/2);
+                    this.ctx.rotate(-1*this.angle + Math.PI/2);
+                    this.ctx.translate(-1*this.canvas.width/2, -1*this.canvas.height/2);
+                    this.ctx.fillStyle = "#000040";
+                    this.ctx.fillRect(this.x,this.y,this.canvas.width-2*this.x,this.canvas.height-2*this.y);
+
+                    // draws a nice background
+                    for(var i = this.x + 10; i < this.width + this.x; i += 10){
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(i,this.y);
+                        this.ctx.lineTo(i,this.height + this.y);
+                        this.ctx.stroke();
+                    }
+                    for(var i = this.y + 10; i < this.height + this.y; i += 10){
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(this.x, i);
+                        this.ctx.lineTo(this.width + this.x, i);
+                        this.ctx.stroke();
+                    }
+
+                    this.ctx.restore();
+
+                    // white fading-in background
+                    this.ctx.fillStyle = "rgba(255, 255, 255, " + this.bgAlpha * this.maxAlpha + ")";
+                    this.ctx.fillRect(this.canvas.width * 0.1, this.canvas.height * 0.1, 
+                                      this.canvas.width * 0.8,  this.canvas.height * 0.8);
+
+                    if(this.bgAlpha < 1){
+                        this.bgAlpha += this.alphaStep;
+                    }
+
+                    // writes game instructions
+                    var title = "Gravity Warp",
+                        desc  = [
+                            "Control the cube using the arrow keys or",
+                            "the wasd keys.",
+                            "Avoid the obstacles in the way, trying to",
+                            "get as many coins as possible.",
+                            "Your score will be calculated based on the",
+                            "seconds survived as well as the number",
+                            "of coins caught"
+                        ],
+                        startTxt = "Press any key to start";
+
+                    this.ctx.font = "50px Garamond";
+                    this.ctx.fillStyle = "rgba(0, 0, 0, " + this.bgAlpha + ")";
+                    this.ctx.fillText(title, this.canvas.width * 0.25, this.canvas.height * 0.22 + 20);
+                    this.ctx.font = "20px Garamond";
+                    for(var i = 1; i < desc.length + 1; i++)
+                        this.ctx.fillText(desc[i-1],  this.canvas.width * 0.18, this.canvas.height * 0.2 + i * 30 + 80);
+
+                    this.ctx.font = "30px Garamond";
+                    this.ctx.fillStyle = "rgba(30, 0, 60, " + this.bgAlpha + ")";
+                    this.ctx.fillText(startTxt, this.canvas.width * 0.2, this.canvas.height * 0.8);
+
+                    this.angle += this.rotSpd;
+
+                    // if a key was pressed, the game should start
+                    if(this.startGame)
+                        return true;
+                    else
+                        return false;
+                };
+
+                this.onExit = function(){
+                    // resets the game start attribute and alpha
+                    this.startGame = false;
+                    this.bgAlpha = 0.;
+
+                    window.removeEventListener("keyup", this.detectInput);
+                };
+            }
+
+            // Gamestate for actual game running
+            function PlayingGameState(canvas, x, y, width, height){
                 // width and height are relative to the playing field, not the whole canvas
-                this.width        = width - 2*x;
+                this.width        = width  - 2*x;
                 this.height       = height - 2*y;
-                // for now player is sent straight from the main function, maybe change it?
-                this.player       = player;
+                // sets a place for the player object
+                this.player       = null;
+                this.playerSize   = 50;
                 this.canvas       = canvas;
                 this.ctx          = canvas.getContext('2d');
-                // flags for detecting if the game is in a menu or not, and for arrow key presses
-                this.gameStarted  = false;
+                // flags for detecting arrow key presses (as well as wasd)
                 this.leftPressed  = false;
                 this.rightPressed = false;
                 this.upPressed    = false;
-                // last frame draw timestamp
-                this.lastDraw     = 0;
+                // last frame render timestamp
+                this.lastRender   = 0;
                 // constant for determining framerate, milliseconds between each frame
-                this.frameUpdate  = 13;
+                this.frameUpdate  = 10;
                 // distance travelled by player when walking or jumping
                 this.playerSpeed  = 1;
                 this.jumpSpeed    = 20;
@@ -147,38 +291,55 @@
                 this.x = x;
                 this.y = y;
 
-                this.startGame = function(){
+                this.keydown = function(e){};
+
+                this.keyup = function(e){};
+
+                this.onEnter = function(){
                     var self = this;
-                    // sets event handlers, the gameStarted flag and starts the first iteration
-                    window.onkeydown = function(e){
+
+                    // redefine function to avoid "this" issues
+                    this.keydown = function(e){
                         if(e.keyCode == 37 || e.keyCode == 65) self.leftPressed = true;
                         if(e.keyCode == 38 || e.keyCode == 87) self.upPressed = true;
                         if(e.keyCode == 39 || e.keyCode == 68) self.rightPressed = true;
                     };
-                    window.onkeyup = function(e){
+
+                    this.keyup = function(e){
                         if(e.keyCode == 37 || e.keyCode == 65) self.leftPressed = false;
                         if(e.keyCode == 38 || e.keyCode == 87) self.upPressed = false;
                         if(e.keyCode == 39 || e.keyCode == 68) self.rightPressed = false;
                     };
-                    this.gameStarted = true;
 
-                    this.step();
+                    // sets event handlers
+                    window.onkeydown = this.keydown;
+                    window.onkeyup = this.keyup;
+
+                    this.player = new Player(
+                                  Math.floor(this.width/2)-this.playerSize,
+                                  this.height - this.playerSize,
+                                  this.playerSize
+                                );
                 };
 
-                this.step = function(){
-                    // calculates if it's been enough time for a new frame to be drawn
-                    // if it is, updates the physics and draws the frame, else
-                    // requests another step
-                    var elapsed = Date.now() - this.lastDraw;
-                    if(elapsed > this.frameUpdate){
-                        this.update();
-                        this.draw(this.ctx);
-                        this.lastDraw = Date.now();
-                    }
-                    if(this.gameStarted) requestAnimationFrame(this.step.bind(this));
+                this.onExit = function(){
+                    window.removeEventListener("keydown", this.keydown);
+                    window.removeEventListener("keyup",   this.keyup);
                 };
 
                 this.update = function(){
+                    // calculates if it's been enough time for a new frame to be rendered
+                    // if it is, steps the physics and renders the frame, else
+                    // requests another update
+                    var elapsed = Date.now() - this.lastRender;
+                    if(elapsed > this.frameUpdate){
+                        this.step();
+                        this.render(this.ctx);
+                        this.lastRender = Date.now();
+                    }
+                };
+
+                this.step = function(){
                     var vel = { x: this.player.velocity.x,
                                 y: this.player.velocity.y },
                         gravDir = this.gravityDirection();
@@ -251,6 +412,35 @@
                             this.player.position.y = this.y;
                         }
                     }
+                };
+
+                this.render = function(ctx){
+                    // simple rendering, for test purposes
+                    ctx.save();
+                    ctx.fillStyle = "#300FC0";
+                    ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+                    ctx.translate(this.canvas.width/2, this.canvas.height/2);
+                    ctx.rotate(-1*this.gravity.getAngle() + Math.PI/2);
+                    ctx.translate(-1*this.canvas.width/2, -1*this.canvas.height/2);
+                    ctx.fillStyle = "#000040";
+                    ctx.fillRect(this.x,this.y,this.canvas.width-2*this.x,this.canvas.height-2*this.y);
+
+                    // draws a nice background
+                    for(var i = this.x + 10; i < this.width + this.x; i += 10){
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(i,this.y);
+                        this.ctx.lineTo(i,this.height + this.y);
+                        this.ctx.stroke();
+                    }
+                    for(var i = this.y + 10; i < this.height + this.y; i += 10){
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(this.x, i);
+                        this.ctx.lineTo(this.width + this.x, i);
+                        this.ctx.stroke();
+                    }
+
+                    this.player.draw(ctx);
+                    ctx.restore();
                 };
 
                 // interface for moving the player
@@ -367,21 +557,6 @@
                         return 1;
                     }
                 };
-
-                this.draw = function(ctx){
-                    // simple drawing, for test purposes
-                    ctx.save();
-                    ctx.fillStyle = "#00FF00";
-                    ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
-                    ctx.translate(this.canvas.width/2, this.canvas.height/2);
-                    ctx.rotate(-1*this.gravity.getAngle() + Math.PI/2);
-                    ctx.translate(-1*this.canvas.width/2, -1*this.canvas.height/2);
-                    ctx.fillStyle = "#000000";
-                    ctx.fillRect(this.x,this.y,this.canvas.width-2*this.x,this.canvas.height-2*this.y);
-
-                    this.player.draw(ctx);
-                    ctx.restore();
-                };
             }
 
             // implementation of a square shaped entity, on top of which
@@ -488,7 +663,7 @@
 
             function main(){
                 var canvas = document.getElementById("game");
-                var f = new Game(new Player(350,450,50),canvas,100,100,canvas.width,canvas.height);
+                var f = new Game(canvas,100,100,canvas.width,canvas.height);
                 f.startGame();
             }
 
