@@ -293,6 +293,11 @@
                 this.currentGDir  = new Vector(1,1);
                 // constant for speed of gravity rotation
                 this.gravAngSpd   = Math.PI/720;
+                // timestamp of last moment in which the field rotated
+                this.lastRotation = Date.now();
+                // the angle the field is rotating towards
+                // must be given in values between -Math.PI and Math.PI
+                this.nextAngle    = 0;
 
                 // position on the canvas, upper left edge
                 this.x = x;
@@ -394,9 +399,38 @@
                     if(this.upPressed && this.playerInGround())
                         this.player.jump(this.jumpSpeed, this.gravity.getUnit());
 
-                    // does gravity rotation all the time
-                    // (gonna take this off, only rotate every now and then)
-                    this.gravity.rotateBy(this.gravAngSpd);
+                    // checks if gravity should be rotated
+                    // if so, calls a function which rotates it
+                    // if not, randomly decides if should start rotating now
+                    if(this.gravity.getAngle() !== this.nextAngle){
+                        this.rotateGravity();
+                    }else if(Date.now() - this.lastRotation > 5000){
+                        var seconds = Math.round((Date.now() - this.lastRotation)/1000),
+                            rand = Math.floor(Math.random() * 25);
+                        var shouldRot = false;
+
+                        for(var i = 0; i < seconds && !shouldRot; i++){
+                            if(Math.floor(Math.random() * 25) === rand)
+                                shouldRot = true;
+                        }
+                        if(shouldRot){
+                            var dir = Math.floor(Math.random()*2);
+                            if(dir){
+                                this.nextAngle = this.gravity.getAngle() + Math.PI/2;
+                                if(this.nextAngle > Math.PI){
+                                    this.nextAngle = -1 * Math.PI + (this.nextAngle % Math.PI)
+                                }
+                            }else{
+                                this.nextAngle = this.gravity.getAngle() - Math.PI/2;
+                                if(this.nextAngle < -1 * Math.PI){
+                                    this.nextAngle = Math.PI + (this.nextAngle % Math.PI)
+                                }
+                            }
+                        }
+
+                    }
+                        
+
                     // moves player and applies velocity
                     this.movePlayer(movement);
                     this.player.update();
@@ -453,6 +487,21 @@
                 // interface for moving the player
                 this.movePlayer = function(quant){
                     this.player.move(quant);
+                };
+
+                // rotates the gravity towards the next position
+                this.rotateGravity = function(){
+                    if(this.gravity.getAngle() < this.nextAngle){
+                        this.gravity.rotateBy(this.gravAngSpd);
+                        // if it rotates more than needed, corrects the angle
+                        if(this.gravity.getAngle() > this.nextAngle)
+                            this.gravity.setAngle(this.nextAngle);
+                    }else if(this.gravity.getAngle() > this.nextAngle){
+                        this.gravity.rotateBy(-1 * this.gravAngSpd);
+                        // if it rotates more than needed, corrects the angle
+                        if(this.gravity.getAngle() < this.nextAngle)
+                            this.gravity.setAngle(this.nextAngle);
+                    }
                 };
 
                 // detects in which components the gravity is acting
@@ -628,6 +677,8 @@
             function ObstaclePool(){
                 this.obstacles = [];
                 this.obstSize  = 10;
+                // Maximum number os obstacle array
+                this.ObstLimit = 20;
 
                 this.addObstacle = function(newObstacle){
                     this.obstacles.push(newObstacle);
