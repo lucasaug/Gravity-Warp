@@ -3,7 +3,8 @@
     <head>
         <title>Jogo</title>
         <script type="text/javascript">
-            
+            "use strict";
+
             // Vector class with the following operations implemented:
 
             // - addition
@@ -399,6 +400,8 @@
                                   this.height - this.playerSize,
                                   this.playerSize
                                 );
+                    // resets the obstacle pool in case this is needed
+                    this.obstaclePool.reset();
 
                     // sets the four hard-coded obstacles
                     var obstSize = this.obstaclePool.obstSize;
@@ -410,14 +413,18 @@
                     this.obstaclePool.addObstacle(new Obstacle(this.x + this.width - obstSize,
                                                   this.y + this.height - obstSize,obstSize),this.x, this.y);
 
-                    this.obstaclePool.spawn(this.width, this.height, this.x, this.y);
+                    // starts the random spawning of obstacles
+                    window.setTimeout(
+                    (function spawn(){
+                        this.obstaclePool.spawn(this.width, this.height, this.x, this.y, this.player);
+                        window.setTimeout(spawn.bind(this), Math.floor(Math.random() * 10000) + 3000);
+                    }).bind(this),
+                    Math.floor(Math.random() * 5000) + 1000);
                 };
 
-                this.onExit = function(){
+                this.onExit = function(){this.obstaclePool.spawn(this.width, this.height, this.x, this.y, this.player);
                     window.removeEventListener("keydown", this.keydown);
                     window.removeEventListener("keyup",   this.keyup);
-
-                    this.obstaclePool.reset();
                 };
 
                 this.update = function(){
@@ -462,7 +469,6 @@
                     ctx.translate(-1*this.canvas.width/2, -1*this.canvas.height/2);
                     // draws the field and background grid
                     ctx.drawImage(this.backGrid, 0, 0);
-
                     this.player.draw(ctx);
 
                     // draws the obstacles
@@ -703,20 +709,20 @@
                 // detects if this entity is colliding with another entity
                 this.collidingWith = function(sqentity){
                     var minBoundThis = {
-                            x: Math.min(this.x, this.x + this.size),
-                            y: Math.min(this.y, this.y + this.size)
+                            x: Math.min(this.position.x, this.position.x + this.size),
+                            y: Math.min(this.position.y, this.position.y + this.size)
                         },
                         maxBoundThis = {
-                            x: Math.max(this.x, this.x + this.size),
-                            y: Math.max(this.y, this.y + this.size)
+                            x: Math.max(this.position.x, this.position.x + this.size),
+                            y: Math.max(this.position.y, this.position.y + this.size)
                         },
                         minBoundOther = {
-                            x: Math.min(sqentity.x, sqentity.x + sqentity.size),
-                            y: Math.min(sqentity.y, sqentity.y + sqentity.size)
+                            x: Math.min(sqentity.position.x, sqentity.position.x + sqentity.size),
+                            y: Math.min(sqentity.position.y, sqentity.position.y + sqentity.size)
                         },
                         maxBoundOther = {
-                            x: Math.max(sqentity.x, sqentity.x + sqentity.size),
-                            y: Math.max(sqentity.y, sqentity.y + sqentity.size)
+                            x: Math.max(sqentity.position.x, sqentity.position.x + sqentity.size),
+                            y: Math.max(sqentity.position.y, sqentity.position.y + sqentity.size)
                         },
                         intersectX = minBoundThis.x < maxBoundOther.x && maxBoundThis.x > minBoundOther.x,
                         intersectY = minBoundThis.y < maxBoundOther.y && maxBoundThis.y > minBoundOther.y;
@@ -766,11 +772,10 @@
 
                 this.addObstacle = function(newObstacle){
                     newObstacle.permanent = true;
-                    this.obstLimit++;
                     this.obstacles.push(newObstacle);
                 };
 
-                this.spawn = function(width, height, canvasX, canvasY){
+                this.spawn = function(width, height, canvasX, canvasY, player){
                     // width and height refer to the field, not the canvas
                     // canvasX and canvasY refer to the field's offset to the canvas
 
@@ -778,26 +783,39 @@
                     // ground we will spawn it
                     var ground = Math.floor(Math.random()*4);
                     var x,y;
+                    // this variable becomes true when we've made sure
+                    // this position doesn't collide with the player
+                    var valid = false;
 
-                    if(ground === 3){
-                        // positive x
-                        x = width - this.obstSize;
-                        y = Math.floor(Math.random() * (height - this.obstSize));
-                    }else if(ground === 2){
-                        // negative x
-                        x = 0;
-                        y = Math.floor(Math.random() * (height - this.obstSize));
-                    }else if(ground === 1){
-                        // positive y
-                        x = Math.floor(Math.random() * (width - this.obstSize));
-                        y = height - this.obstSize;
-                    }else if(ground === 0){
-                        // negative y
-                        x = Math.floor(Math.random() * (width - this.obstSize));
-                        y = 0;
+                    while(!valid){
+                        if(ground === 3){
+                            // positive x
+                            x = width - this.obstSize;
+                            y = Math.floor(Math.random() * (height - this.obstSize));
+                        }else if(ground === 2){
+                            // negative x
+                            x = 0;
+                            y = Math.floor(Math.random() * (height - this.obstSize));
+                        }else if(ground === 1){
+                            // positive y
+                            x = Math.floor(Math.random() * (width - this.obstSize));
+                            y = height - this.obstSize;
+                        }else if(ground === 0){
+                            // negative y
+                            x = Math.floor(Math.random() * (width - this.obstSize));
+                            y = 0;
+                        }
+
+                        x += canvasX;
+                        y += canvasY;
+
+                        var collisionTester = new Obstacle(x, y, this.obstSize);
+
+                        if(!collisionTester.collidingWith(player))
+                            valid = true;
+                        else
+                            ground = Math.floor(Math.random()*4);
                     }
-                    x += canvasX;
-                    y += canvasY;
                     // adds an obstacle to the list if it's not full
                     // if it is, reuses an object
                     // only does any of that if there's enough space
