@@ -396,8 +396,8 @@
 
                     // creates the player
                     this.player = new Player(
-                                  ((this.width/2) | 0)-this.playerSize,
-                                  this.height - this.playerSize,
+                                ((this.width/2) | 0) - this.playerSize + this.x,
+                                ((this.height/2) | 0) - this.playerSize + this.y,
                                   this.playerSize
                                 );
                     // resets the obstacle pool in case this is needed
@@ -417,7 +417,7 @@
                     window.setTimeout(
                     (function spawn(){
                         this.obstaclePool.spawn(this.width, this.height, this.x, this.y, this.player);
-                        window.setTimeout(spawn.bind(this), Math.floor(Math.random() * 10000) + 3000);
+                        window.setTimeout(spawn.bind(this), Math.floor(Math.random() * 5000) + 3000);
                     }).bind(this),
                     Math.floor(Math.random() * 5000) + 1000);
                 };
@@ -429,7 +429,13 @@
 
                 this.update = function(){
                     this.render(this.ctx);
-                    this.step();
+                    var shouldStop = this.step();
+                    if(shouldStop){
+                        // renders the scene again so the death is visible
+                        this.render(this.ctx);
+                        this.render(this.ctx);
+                    }
+                    return shouldStop;
                 };
 
                 this.step = function(){
@@ -450,10 +456,14 @@
                     this.movePlayer(movement);
                     this.player.update();
 
-                    // kills obstacles if needed
-                    this.obstaclePool.update();
-
                     this.limitPlayerBounds();
+
+                    // kills obstacles if needed
+                    // this function returns true if the player has been killed by an obstacle
+                    var dead = this.obstaclePool.update(this.player);
+                    if(dead)
+                        return true;
+                    return false;
                 };
 
                 this.render = function(ctx){
@@ -726,7 +736,6 @@
                         },
                         intersectX = minBoundThis.x < maxBoundOther.x && maxBoundThis.x > minBoundOther.x,
                         intersectY = minBoundThis.y < maxBoundOther.y && maxBoundThis.y > minBoundOther.y;
-
                     if(intersectX && intersectY)
                         return true;
                     else
@@ -764,7 +773,7 @@
 
             function ObstaclePool(){
                 this.obstacles = [];
-                this.obstSize  = 20;
+                this.obstSize  = 30;
                 // maximum number os obstacle array
                 this.obstLimit = 20;
                 // lifespan of an obstacle, in miliseconds
@@ -834,13 +843,20 @@
                     }
                 };
 
-                this.update = function(){
+                this.update = function(player){
                     for(var i = 0; i < this.obstacles.length; i++){
-                        if(!this.obstacles[i].permanent && this.obstacles[i].alive &&
-                            Date.now() - this.obstacles[i].birthTime > this.lifeSpan){
-                            this.obstacles[i].alive = false;
+                        if(this.obstacles[i].alive){
+                            if(this.obstacles[i].collidingWith(player)){
+                                // player collided with an obstacle - death
+                                return true;
+                            }
+                            if(!this.obstacles[i].permanent &&
+                                Date.now() - this.obstacles[i].birthTime > this.lifeSpan){
+                                this.obstacles[i].alive = false;
+                            }
                         }
                     }
+                    return false;
                 };
 
                 this.render = function(ctx){
