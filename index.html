@@ -3,8 +3,6 @@
     <head>
         <title>Jogo</title>
         <script type="text/javascript">
-            "use strict";
-
             // Vector class with the following operations implemented:
 
             // - addition
@@ -21,174 +19,108 @@
             // getting x and y component vectors of another vector,
             // dot products and projection onto another vector
 
-            function Vector(x,y){
+            function Vector(x, y) {
+                "use strict";
+
                 this.x = x;
                 this.y = y;
 
-                this.addTo = function(vec){
+                this.addTo = function (vec) {
                     this.x += vec.x;
                     this.y += vec.y;
                 };
 
-                this.subtractFrom = function(vec){
+                this.subtractFrom = function (vec) {
                     this.x -= vec.x;
                     this.y -= vec.y;
                 };
 
-                this.multiplyBy = function(scalar){
+                this.multiplyBy = function (scalar) {
                     this.x *= scalar;
                     this.y *= scalar;
                 };
 
-                this.divideBy = function(scalar){
-                    this.multiplyBy(1/scalar);
+                this.divideBy = function (scalar) {
+                    this.multiplyBy(1 / scalar);
                 };
 
-                this.rotateBy = function(angle){
+                this.rotateBy = function (angle) {
                     var currentAng = this.getAngle();
                     this.setAngle(currentAng + angle);
                 };
 
-                this.add = function(vec){
+                this.add = function (vec) {
                     return new Vector(this.x + vec.x, this.y + vec.y);
                 };
 
-                this.subtract = function(vec){
+                this.subtract = function (vec) {
                     return new Vector(this.x - vec.x, this.y - vec.y);
                 };
 
-                this.multiply = function(scalar){
+                this.multiply = function (scalar) {
                     return new Vector(this.x * scalar, this.y * scalar);
                 };
 
-                this.divide = function(scalar){
-                    return this.multiply(1/scalar);
+                this.divide = function (scalar) {
+                    return this.multiply(1 / scalar);
                 };
 
-                this.rotate = function(angle){
+                this.rotate = function (angle) {
                     var result = this;
                     result.rotateBy(angle);
                     return result;
                 };
 
-                this.setAngle = function(angle) {
+                this.setAngle = function (angle) {
                     var length = this.getLength();
                     this.x = Math.cos(angle) * length;
                     this.y = Math.sin(angle) * length;
                 };
 
-                this.getAngle = function() {
+                this.getAngle = function () {
                     return Math.atan2(this.y, this.x);
                 };
 
-                this.setLength = function(length) {
+                this.setLength = function (length) {
                     var angle = this.getAngle();
                     this.x = Math.cos(angle) * length;
                     this.y = Math.sin(angle) * length;
                 };
 
-                this.getLength = function() {
+                this.getLength = function () {
                     return Math.sqrt(this.x * this.x + this.y * this.y);
                 };
 
-                this.getUnit = function() {
+                this.getUnit = function () {
                     return this.divide(this.getLength());
                 };
 
-                this.dot = function(vector){
+                this.dot = function (vector) {
                     return this.x * vector.x + this.y * vector.y;
                 };
 
-                this.projectionOnto = function(vector){
-                    var result = this.dot(vector)/vector.getLength();
+                this.projectionOnto = function (vector) {
+                    var result = this.dot(vector) / vector.getLength();
                     return vector.getUnit().multiply(result);
                 };
 
-                this.xComponent = function(){
-                    return new Vector(this.x,0);
+                this.xComponent = function () {
+                    return new Vector(this.x, 0);
                 };
 
-                this.yComponent = function(){
-                    return new Vector(0,this.y);
+                this.yComponent = function () {
+                    return new Vector(0, this.y);
                 };
-            };
-
-            // Game class which manages gamestates
-            function Game(canvas,width){
-                this.width                = width;
-                this.height               = width;
-                // the x and y position of the field is calculated so it
-                // never surpasses the canvas, even when rotated.
-                this.x                    = Math.floor((width * (1 - Math.SQRT2))/(-2 * Math.SQRT2));
-                this.y                    = this.x;
-                this.currentGameStateName = null;
-
-                // buffer canvas and context, we pass these to the
-                // gamestates
-                this.bCanvas              = null;
-                this.ctx                  = null;
-
-                // last frame render timestamp
-                this.lastRender   = 0;
-                // constant for determining framerate, milliseconds between each frame
-                this.frameUpdate  = 15;
-
-                // list of existing gamestates
-                // a gamestate must implement the following methods:
-                // onEnter, update and onExit
-                // (pretty self explanatory)
-                this.gameStates           = {};
-
-                this.startGame = function(){
-                    // define the buffers
-                    this.bCanvas = document.createElement("canvas");
-                    this.bCanvas.setAttribute("width", canvas.width);
-                    this.bCanvas.setAttribute("height", canvas.height);
-                    this.ctx = this.bCanvas.getContext('2d');
-
-                    // here we create the gamestates
-                    this.gameStates = {
-                        "menu"     : new MenuGameState(canvas, this.x, this.y, this.width, this.height, this.bCanvas,
-                                                       this.ctx),
-                        "playing"  : new PlayingGameState(canvas, this.x, this.y, this.width, this.height, this.bCanvas,
-                                                          this.ctx),
-                        "gameover" : null
-                    };
-
-                    // and now define the first gamestate (menu) and start game
-                    this.currentGameStateName = "menu";
-                    this.gameStates[this.currentGameStateName].onEnter();
-                    this.update();
-                }
-
-                this.update = function(){
-                    // calculates if it's been enough time for a new frame to be rendered
-                    // if it is, calls update on the gamestate
-                    var elapsed = Date.now() - this.lastRender;
-                    if(elapsed > this.frameUpdate){
-                        this.lastRender = Date.now();
-                        var shouldStop = this.gameStates[this.currentGameStateName].update();
-                        if(shouldStop){
-                            if(this.currentGameStateName === "menu" || this.currentGameStateName === "gameover")
-                                this.changeGameState("playing");
-                            else if(this.currentGameStateName === "playing")
-                                this.changeGameState("gameover");
-                        }
-                    }
-                    requestAnimationFrame(this.update.bind(this));
-                };
-
-                this.changeGameState = function(newGSName){
-                    this.gameStates[this.currentGameStateName].onExit();
-                    this.currentGameStateName = newGSName;
-                    this.gameStates[this.currentGameStateName].onEnter();
-                }
-            };
+            }
 
             // Initial GameState, draws game menu
-            function MenuGameState(canvas, x, y, width, height, bCanvas, ctx){
-                this.width     = width  - 2*x;
-                this.height    = height - 2*y;
+            // time only needs to be set if gameOver is true
+            function MenuGameState(canvas, x, y, width, height, bCanvas, ctx, gameOver, time) {
+                // TODO ALGUMA FORMA DE PASSAR O TEMPO
+                "use strict";
+
+                this.width     = width  - 2 * x;
+                this.height    = height - 2 * y;
                 this.x         = x;
                 this.y         = y;
                 this.canvas    = canvas;
@@ -198,28 +130,27 @@
                 // this context refers to the buffer's context
                 this.ctx       = ctx;
                 this.angle     = 0;
-                this.rotSpd    = Math.PI/720;
-                this.bgAlpha   = 0.;
+                this.rotSpd    = Math.PI / 720;
+                this.bgAlpha   = 0.0;
                 this.alphaStep = 0.01;
                 this.maxAlpha  = 0.6;
                 this.startGame = false;
 
-                this.detectInput = function(){};
-
-                this.onEnter = function(){
+                this.onEnter = function () {
                     var self = this;
 
                     // redefine function to avoid "this" issues
-                    this.detectInput = function(e){
-                        if(e.keyCode === 13)
+                    this.detectInput = function (e) {
+                        if (e.keyCode === 13) {
                             self.startGame = true;
+                        }
                     };
 
                     // sets event handlers
                     window.onkeydown = this.detectInput;
                 };
 
-                this.update = function(){
+                this.update = function () {
                     // draws buffer canvas into actual canvas
                     this.canvas.getContext('2d').drawImage(this.bCanvas,0,0);
 
@@ -234,11 +165,11 @@
 
                     // draws a nice background
                     this.ctx.beginPath();
-                    for(var i = this.x + 10; i < this.width + this.x; i += 10){
+                    for(var i = this.x + 10; i < this.width + this.x; i += 10) {
                         this.ctx.moveTo(i,this.y);
                         this.ctx.lineTo(i,this.height + this.y);
                     }
-                    for(var i = this.y + 10; i < this.height + this.y; i += 10){
+                    for(var i = this.y + 10; i < this.height + this.y; i += 10) {
                         this.ctx.moveTo(this.x, i);
                         this.ctx.lineTo(this.width + this.x, i);
                     }
@@ -251,7 +182,7 @@
                     this.ctx.fillRect(this.canvas.width * 0.1, this.canvas.height * 0.1, 
                                       this.canvas.width * 0.8,  this.canvas.height * 0.8);
 
-                    if(this.bgAlpha < 1){
+                    if (this.bgAlpha < 1) {
                         this.bgAlpha += this.alphaStep;
                     }
 
@@ -261,12 +192,20 @@
                             "Control the cube using the arrow keys or",
                             "the wasd keys.",
                             "Avoid the obstacles in the way, trying to",
-                            "get as many coins as possible.",
+                            "survive for as long as possible.",
                             "Your score will be calculated based on the",
-                            "seconds survived as well as the number",
-                            "of coins caught"
+                            "seconds survived."
                         ],
                         startTxt = "Press Enter/Return to start";
+
+                    // if this is the gameover menu, sets the appropriate messages
+                    if (gameOver) {
+                        title = "Game Over",
+                        desc  = [
+                            "You survived for " + time + " seconds."
+                        ],
+                        startTxt = "Press Enter/Return to play again";
+                    }
 
                     // fonts and line spacing are determined by the total canvas width
                     // and height
@@ -285,13 +224,13 @@
                     this.angle += this.rotSpd;
 
                     // if a key was pressed, the game should start
-                    if(this.startGame)
+                    if (this.startGame)
                         return true;
                     else
                         return false;
                 };
 
-                this.onExit = function(){
+                this.onExit = function () {
                     // resets the game start attribute and alpha
                     this.startGame = false;
                     this.bgAlpha = 0.;
@@ -301,7 +240,9 @@
             }
 
             // Gamestate for actual game running
-            function PlayingGameState(canvas, x, y, width, height, bCanvas, ctx){
+            function PlayingGameState(canvas, x, y, width, height, bCanvas, ctx) {
+                "use strict";
+
                 // width and height are relative to the playing field, not the whole canvas
                 this.width        = Math.round(width  - 2*x);
                 this.height       = Math.round(height - 2*y);
@@ -351,24 +292,24 @@
                 this.x = x;
                 this.y = y;
 
-                this.keydown = function(e){};
+                this.keydown = function (e) {};
 
-                this.keyup = function(e){};
+                this.keyup = function (e) {};
 
-                this.onEnter = function(){
+                this.onEnter = function () {
                     var self = this;
 
                     // redefine function to avoid "this" issues
-                    this.keydown = function(e){
-                        if(e.keyCode == 37 || e.keyCode == 65) self.leftPressed = true;
-                        if(e.keyCode == 38 || e.keyCode == 87) self.upPressed = true;
-                        if(e.keyCode == 39 || e.keyCode == 68) self.rightPressed = true;
+                    this.keydown = function (e) {
+                        if (e.keyCode == 37 || e.keyCode == 65) self.leftPressed = true;
+                        if (e.keyCode == 38 || e.keyCode == 87) self.upPressed = true;
+                        if (e.keyCode == 39 || e.keyCode == 68) self.rightPressed = true;
                     };
 
-                    this.keyup = function(e){
-                        if(e.keyCode == 37 || e.keyCode == 65) self.leftPressed = false;
-                        if(e.keyCode == 38 || e.keyCode == 87) self.upPressed = false;
-                        if(e.keyCode == 39 || e.keyCode == 68) self.rightPressed = false;
+                    this.keyup = function (e) {
+                        if (e.keyCode == 37 || e.keyCode == 65) self.leftPressed = false;
+                        if (e.keyCode == 38 || e.keyCode == 87) self.upPressed = false;
+                        if (e.keyCode == 39 || e.keyCode == 68) self.rightPressed = false;
                     };
 
                     // sets event handlers
@@ -384,11 +325,11 @@
                     gridContext.fillStyle = "#000040";
                     gridContext.fillRect(this.x,this.y,this.canvas.width-2*this.x,this.canvas.height-2*this.y);
                     gridContext.beginPath();
-                    for(var i = this.x + 10; i < this.width + this.x; i += 10){
+                    for(var i = this.x + 10; i < this.width + this.x; i += 10) {
                         gridContext.moveTo(i,this.y);
                         gridContext.lineTo(i,this.height + this.y);
                     }
-                    for(var i = this.y + 10; i < this.height + this.y; i += 10){
+                    for(var i = this.y + 10; i < this.height + this.y; i += 10) {
                         gridContext.moveTo(this.x, i);
                         gridContext.lineTo(this.width + this.x, i);
                     }
@@ -415,22 +356,22 @@
 
                     // starts the random spawning of obstacles
                     window.setTimeout(
-                    (function spawn(){
+                    (function spawn() {
                         this.obstaclePool.spawn(this.width, this.height, this.x, this.y, this.player);
-                        window.setTimeout(spawn.bind(this), Math.floor(Math.random() * 5000) + 3000);
+                        window.setTimeout(spawn.bind(this), Math.floor(Math.random() * 3000) + 1000);
                     }).bind(this),
-                    Math.floor(Math.random() * 5000) + 1000);
+                    Math.floor(Math.random() * 3000) + 1000);
                 };
 
-                this.onExit = function(){this.obstaclePool.spawn(this.width, this.height, this.x, this.y, this.player);
+                this.onExit = function () {this.obstaclePool.spawn(this.width, this.height, this.x, this.y, this.player);
                     window.removeEventListener("keydown", this.keydown);
                     window.removeEventListener("keyup",   this.keyup);
                 };
 
-                this.update = function(){
+                this.update = function () {
                     this.render(this.ctx);
                     var shouldStop = this.step();
-                    if(shouldStop){
+                    if (shouldStop) {
                         // renders the scene again so the death is visible
                         this.render(this.ctx);
                         this.render(this.ctx);
@@ -438,19 +379,17 @@
                     return shouldStop;
                 };
 
-                this.step = function(){
+                this.step = function () {
                     this.jumpGravStabilize();
 
                     // moving the player left/right and jumping
                     var movement = new Vector(0,0);
-                    if(this.leftPressed)
+                    if (this.leftPressed)
                         movement = this.gravity.getUnit().multiply(-5 * this.playerSpeed).rotate(-1 * Math.PI/2);
-                    if(this.rightPressed)
+                    if (this.rightPressed)
                         movement = this.gravity.getUnit().multiply(-5 * this.playerSpeed).rotate(Math.PI/2);
-                    if(this.upPressed && this.playerInGround())
+                    if (this.upPressed && this.playerInGround())
                         this.player.jump(this.jumpSpeed, this.gravity.getUnit());
-
-                    this.processGravity();
 
                     // moves player and applies velocity
                     this.movePlayer(movement);
@@ -458,15 +397,17 @@
 
                     this.limitPlayerBounds();
 
+                    this.processGravity();
+
                     // kills obstacles if needed
                     // this function returns true if the player has been killed by an obstacle
                     var dead = this.obstaclePool.update(this.player);
-                    if(dead)
+                    if (dead)
                         return true;
                     return false;
                 };
 
-                this.render = function(ctx){
+                this.render = function (ctx) {
                     // draws buffer canvas into actual canvas
                     this.canvas.getContext('2d').drawImage(this.bCanvas,0,0);
 
@@ -488,10 +429,10 @@
                 };
 
                 // keeps player inside the field
-                this.limitPlayerBounds = function(){
+                this.limitPlayerBounds = function () {
                     var inFieldX = this.entityInFieldX(this.player);
-                    if(inFieldX != 0){
-                        if(inFieldX > 0){
+                    if (inFieldX != 0) {
+                        if (inFieldX > 0) {
                             this.player.position.x = this.x + this.width - this.player.size;
                         }else{
                             this.player.position.x = this.x;
@@ -499,8 +440,8 @@
                     }
 
                     var inFieldY = this.entityInFieldY(this.player);
-                    if(inFieldY != 0){
-                        if(inFieldY > 0){
+                    if (inFieldY != 0) {
+                        if (inFieldY > 0) {
                             this.player.position.y = this.y + this.height - this.player.size;
                         }else{
                             this.player.position.y = this.y;
@@ -510,42 +451,42 @@
 
                 // checks if gravity is rotating or 
                 // should(n't) start rotating
-                this.processGravity = function(){
+                this.processGravity = function () {
 
                     // checks if gravity should be rotated
                     // if so, rotates it in the correct direction
                     // if not, randomly decides if should start rotating now
-                    if(this.gravity.getAngle() !== this.nextAngle){
-                        if(this.gravity.getAngle() < this.nextAngle){
+                    if (this.gravity.getAngle() !== this.nextAngle) {
+                        if (this.gravity.getAngle() < this.nextAngle) {
                             this.gravity.rotateBy(this.rotDir * this.gravAngSpd);
                             // if it rotates more than needed, corrects the angle
-                            if(this.gravity.getAngle() > this.nextAngle){
+                            if (this.gravity.getAngle() > this.nextAngle) {
                                 this.gravity.setAngle(this.nextAngle);
                                 this.lastRotation = Date.now();
                             }
-                        }else if(this.gravity.getAngle() > this.nextAngle){
+                        }else if (this.gravity.getAngle() > this.nextAngle) {
                             this.gravity.rotateBy(this.rotDir * this.gravAngSpd);
                             // if it rotates more than needed, corrects the angle
-                            if(this.gravity.getAngle() < this.nextAngle){
+                            if (this.gravity.getAngle() < this.nextAngle) {
                                 this.gravity.setAngle(this.nextAngle);
                                 this.lastRotation = Date.now();
                             }
                         }
 
-                    }else if(Date.now() - this.lastRotation > 5000 && !this.betweenRot){
+                    }else if (Date.now() - this.lastRotation > 5000 && !this.betweenRot) {
                         this.betweenRot = true;
-                        window.setTimeout( (function(){
+                        window.setTimeout( (function () {
                             this.betweenRot = false;
                             this.rotDir = 0;
                             while(!this.rotDir)
                                 this.rotDir = Math.floor((Math.random()*3) - 1);
-                            if(this.rotDir > 0){
+                            if (this.rotDir > 0) {
                                 this.nextAngle = this.gravity.getAngle() + Math.PI/2;
-                                if(this.nextAngle >= Math.PI)
+                                if (this.nextAngle >= Math.PI)
                                     this.nextAngle = this.nextAngle % Math.PI;
                             }else{
                                 this.nextAngle = this.gravity.getAngle() - Math.PI/2;
-                                if(this.nextAngle <= -1 * Math.PI)
+                                if (this.nextAngle <= -1 * Math.PI)
                                     this.nextAngle = this.nextAngle % Math.PI;
                             }
                         }).bind(this) , Math.floor(Math.random() * 15) * 1000);
@@ -554,7 +495,7 @@
 
                 // regulates the jumping and collisions with the field
                 // aplies gravity
-                this.jumpGravStabilize = function(){
+                this.jumpGravStabilize = function () {
                     var vel = { x: this.player.velocity.x,
                                 y: this.player.velocity.y },
                         gravDir = this.gravityDirection();
@@ -563,18 +504,18 @@
                                                this.playerGroundYDir(gravDir));
 
                     // stops jumping if player hit the ceiling
-                    if(this.playerInCeiling()){
-                        if((-1*gravDir.x > 0 && vel.x > 0) || (-1*gravDir.x < 0 && vel.x < 0))
+                    if (this.playerInCeiling()) {
+                        if ((-1*gravDir.x > 0 && vel.x > 0) || (-1*gravDir.x < 0 && vel.x < 0))
                             this.player.stop({x:1});
-                        if((-1*gravDir.y > 0 && vel.y > 0) || (-1*gravDir.y < 0 && vel.y < 0))
+                        if ((-1*gravDir.y > 0 && vel.y > 0) || (-1*gravDir.y < 0 && vel.y < 0))
                             this.player.stop({y:1});
                     };
                     // stops gravity and velocities from acting in the ground direction if player
                     // is in ground
-                    if(this.playerInGround()){
-                        if(groundDir.x != 0 && groundDir.y != 0)
+                    if (this.playerInGround()) {
+                        if (groundDir.x != 0 && groundDir.y != 0)
                             this.currentGDir = new Vector(0,0);
-                        else if(groundDir.x != 0){
+                        else if (groundDir.x != 0) {
                             this.currentGDir.x = 0;
                             this.currentGDir.y = 1;
                         }else{
@@ -582,11 +523,11 @@
                             this.currentGDir.y = 0;
                         }
 
-                        if((gravDir.x > 0 && vel.x > 0) || (gravDir.x < 0 && vel.x < 0))
+                        if ((gravDir.x > 0 && vel.x > 0) || (gravDir.x < 0 && vel.x < 0))
                             this.player.stop({x:1});
-                        if((gravDir.y > 0 && vel.y > 0) || (gravDir.y < 0 && vel.y < 0))
+                        if ((gravDir.y > 0 && vel.y > 0) || (gravDir.y < 0 && vel.y < 0))
                             this.player.stop({y:1});
-                    }else if(this.currentGDir.x == 0 || this.currentGDir.y == 0){
+                    }else if (this.currentGDir.x == 0 || this.currentGDir.y == 0) {
                         this.currentGDir = new Vector(1,1);
                     }
 
@@ -595,22 +536,22 @@
                 };
 
                 // interface for moving the player
-                this.movePlayer = function(quant){
+                this.movePlayer = function (quant) {
                     this.player.move(quant);
                 };
 
                 // detects in which components the gravity is acting
-                this.gravityDirection = function(){
+                this.gravityDirection = function () {
                     var xDir = 0;
-                    if(this.gravity.x > 0){
+                    if (this.gravity.x > 0) {
                         xDir = 1;
-                    }else if(this.gravity.x < 0){
+                    }else if (this.gravity.x < 0) {
                         xDir = -1;
                     }
                     var yDir = 0;
-                    if(this.gravity.y > 0){
+                    if (this.gravity.y > 0) {
                         yDir = 1;
-                    }else if(this.gravity.y < 0){
+                    }else if (this.gravity.y < 0) {
                         yDir = -1;
                     }
                     return new Vector(xDir,yDir);
@@ -618,41 +559,41 @@
 
                 // detects what is the x direction of the player's ground, if it is in a ground
                 // returns X ground direction (1 or -1), if not in a ground, returns 0
-                this.playerGroundXDir = function(gravDir){
-                    if(gravDir.x > 0){
-                        if(this.x + this.width == this.player.position.x + this.player.size)
+                this.playerGroundXDir = function (gravDir) {
+                    if (gravDir.x > 0) {
+                        if (this.x + this.width == this.player.position.x + this.player.size)
                            return 1;
                     }
-                    if(gravDir.x < 0){
-                        if(this.x == this.player.position.x)
+                    if (gravDir.x < 0) {
+                        if (this.x == this.player.position.x)
                            return -1;
                     }
                     return 0;
                 };
 
                 // same for y
-                this.playerGroundYDir = function(gravDir){
-                    if(gravDir.y > 0){
-                        if(this.y + this.height == this.player.position.y + this.player.size)
+                this.playerGroundYDir = function (gravDir) {
+                    if (gravDir.y > 0) {
+                        if (this.y + this.height == this.player.position.y + this.player.size)
                            return 1;
                     }
-                    if(gravDir.y < 0){
-                        if(this.y == this.player.position.y)
+                    if (gravDir.y < 0) {
+                        if (this.y == this.player.position.y)
                            return -1;
                     }
                     return 0;
                 };
- 
+
                 // detects if player is in any ground, returns 1 or -1 for
                 // x and y, indicating where the floor is on a given axis
-                this.playerInGround = function(){
+                this.playerInGround = function () {
                     var gravDir = this.gravityDirection();
 
                     var groundDir = {
                         x: this.playerGroundXDir(gravDir),
                         y: this.playerGroundYDir(gravDir)
                     };
-                    if(groundDir.x != 0 || groundDir.y != 0){
+                    if (groundDir.x != 0 || groundDir.y != 0) {
                         return true;
                     }
 
@@ -660,36 +601,36 @@
                 };
 
                 // detects if player is in any ceiling
-                this.playerInCeiling = function(){
+                this.playerInCeiling = function () {
                     var jumpDir = this.gravityDirection();
                     jumpDir.multiplyBy(-1);
 
-                    if(jumpDir.x > 0){
-                        if(this.x + this.width == this.player.position.x + this.player.size)
+                    if (jumpDir.x > 0) {
+                        if (this.x + this.width == this.player.position.x + this.player.size)
                            return true;
                     }
-                    if(jumpDir.x < 0){
-                        if(this.x == this.player.position.x)
+                    if (jumpDir.x < 0) {
+                        if (this.x == this.player.position.x)
                            return true;
                     }
-                    if(jumpDir.y > 0){
-                        if(this.y + this.height == this.player.position.y + this.player.size)
+                    if (jumpDir.y > 0) {
+                        if (this.y + this.height == this.player.position.y + this.player.size)
                            return true;
                     }
-                    if(jumpDir.y < 0){
-                        if(this.y == this.player.position.y)
+                    if (jumpDir.y < 0) {
+                        if (this.y == this.player.position.y)
                            return true;
                     }
                     return false;
                 };
 
                 // detects if an entity is within the X range of the game
-                this.entityInFieldX = function(sqentity){
+                this.entityInFieldX = function (sqentity) {
                     var xMin = Math.min(sqentity.position.x, sqentity.position.x + sqentity.size),
                         xMax = Math.max(sqentity.position.x, sqentity.position.x + sqentity.size);
-                    if(xMin > this.x && xMax < this.x + this.width){
+                    if (xMin > this.x && xMax < this.x + this.width) {
                         return 0
-                    }else if(xMin <= this.x){
+                    }else if (xMin <= this.x) {
                         return -1;
                     }else{
                         return 1;
@@ -697,12 +638,12 @@
                 };
 
                 // detects if an entity is within the Y range of the game
-                this.entityInFieldY = function(sqentity){
+                this.entityInFieldY = function (sqentity) {
                     var yMin = Math.min(sqentity.position.y, sqentity.position.y + sqentity.size),
                         yMax = Math.max(sqentity.position.y, sqentity.position.y + sqentity.size);
-                    if(yMin > this.y && yMax < this.y + this.height){
+                    if (yMin > this.y && yMax < this.y + this.height) {
                         return 0
-                    }else if(yMin <= this.y){
+                    }else if (yMin <= this.y) {
                         return -1;
                     }else{
                         return 1;
@@ -710,14 +651,91 @@
                 };
             }
 
+            // Game class which manages gamestates
+            function Game(canvas, width) {
+                "use strict";
+
+                this.width                = width;
+                this.height               = width;
+                // the x and y position of the field is calculated so it
+                // never surpasses the canvas, even when rotated.
+                this.x                    = Math.floor((width * (1 - Math.SQRT2)) / (-2 * Math.SQRT2));
+                this.y                    = this.x;
+                this.currentGameStateName = null;
+
+                // buffer canvas and context, we pass these to the
+                // gamestates
+                this.bCanvas              = null;
+                this.ctx                  = null;
+
+                // last frame render timestamp
+                this.lastRender   = 0;
+                // constant for determining framerate, milliseconds between each frame
+                this.frameUpdate  = 15;
+
+                // list of existing gamestates
+                // a gamestate must implement the following methods:
+                // onEnter, update and onExit
+                // (pretty self explanatory)
+                this.gameStates           = {};
+
+                this.startGame = function () {
+                    // define the buffers
+                    this.bCanvas = document.createElement("canvas");
+                    this.bCanvas.setAttribute("width", canvas.width);
+                    this.bCanvas.setAttribute("height", canvas.height);
+                    this.ctx = this.bCanvas.getContext('2d');
+
+                    // here we create the gamestates
+                    this.gameStates = {
+                        "menu"     : new MenuGameState(canvas, this.x, this.y, this.width, this.height, this.bCanvas,
+                                                       this.ctx),
+                        "playing"  : new PlayingGameState(canvas, this.x, this.y, this.width, this.height, this.bCanvas,
+                                                          this.ctx),
+                        "gameover" : new MenuGameState(canvas, this.x, this.y, this.width, this.height, this.bCanvas,
+                                                       this.ctx, true),
+                    };
+
+                    // and now define the first gamestate (menu) and start game
+                    this.currentGameStateName = "menu";
+                    this.gameStates[this.currentGameStateName].onEnter();
+                    this.update();
+                }
+
+                this.update = function () {
+                    // calculates if it's been enough time for a new frame to be rendered
+                    // if it is, calls update on the gamestate
+                    var elapsed = Date.now() - this.lastRender;
+                    if (elapsed > this.frameUpdate) {
+                        this.lastRender = Date.now();
+                        var shouldStop = this.gameStates[this.currentGameStateName].update();
+                        if (shouldStop) {
+                            if (this.currentGameStateName === "menu" || this.currentGameStateName === "gameover")
+                                this.changeGameState("playing");
+                            else if (this.currentGameStateName === "playing")
+                                this.changeGameState("gameover");
+                        }
+                    }
+                    requestAnimationFrame(this.update.bind(this));
+                };
+
+                this.changeGameState = function (newGSName) {
+                    this.gameStates[this.currentGameStateName].onExit();
+                    this.currentGameStateName = newGSName;
+                    this.gameStates[this.currentGameStateName].onEnter();
+                }
+            }
+
             // implementation of a square shaped entity, on top of which
             // the player, enemies and points will be built
-            function SQEntity(x,y,size){
+            function SQEntity(x,y,size) {
+                "use strict";
+
                 this.position = new Vector(x,y);
                 this.size = size;
 
                 // detects if this entity is colliding with another entity
-                this.collidingWith = function(sqentity){
+                this.collidingWith = function (sqentity) {
                     var minBoundThis = {
                             x: Math.min(this.position.x, this.position.x + this.size),
                             y: Math.min(this.position.y, this.position.y + this.size)
@@ -736,15 +754,17 @@
                         },
                         intersectX = minBoundThis.x < maxBoundOther.x && maxBoundThis.x > minBoundOther.x,
                         intersectY = minBoundThis.y < maxBoundOther.y && maxBoundThis.y > minBoundOther.y;
-                    if(intersectX && intersectY)
+                    if (intersectX && intersectY)
                         return true;
                     else
                         return false;
                 };
-            };
+            }
 
 
-            function Obstacle(x,y,size){
+            function Obstacle(x,y,size) {
+                "use strict";
+
                 // inheritance
                 this.prototype = SQEntity.prototype;
                 
@@ -760,7 +780,7 @@
                 // must stay where it is and never unspawn
                 this.permanent = false;
 
-                this.draw = function(ctx){
+                this.draw = function (ctx) {
                     var lastFill   = ctx.fillStyle,
                         lastStroke = ctx.strokeStyle;
                     ctx.fillStyle = "#FFFFFF";
@@ -769,22 +789,24 @@
                     ctx.fillStyle = lastFill;
                     ctx.strokeStyle = lastStroke;
                 };
-            };
+            }
 
-            function ObstaclePool(){
+            function ObstaclePool() {
+                "use strict";
+
                 this.obstacles = [];
-                this.obstSize  = 30;
+                this.obstSize  = 20;
                 // maximum number os obstacle array
-                this.obstLimit = 20;
+                this.obstLimit = 30;
                 // lifespan of an obstacle, in miliseconds
                 this.lifeSpan  = 20000;
 
-                this.addObstacle = function(newObstacle){
+                this.addObstacle = function (newObstacle) {
                     newObstacle.permanent = true;
                     this.obstacles.push(newObstacle);
                 };
 
-                this.spawn = function(width, height, canvasX, canvasY, player){
+                this.spawn = function (width, height, canvasX, canvasY, player) {
                     // width and height refer to the field, not the canvas
                     // canvasX and canvasY refer to the field's offset to the canvas
 
@@ -796,20 +818,20 @@
                     // this position doesn't collide with the player
                     var valid = false;
 
-                    while(!valid){
-                        if(ground === 3){
+                    while(!valid) {
+                        if (ground === 3) {
                             // positive x
                             x = width - this.obstSize;
                             y = Math.floor(Math.random() * (height - this.obstSize));
-                        }else if(ground === 2){
+                        }else if (ground === 2) {
                             // negative x
                             x = 0;
                             y = Math.floor(Math.random() * (height - this.obstSize));
-                        }else if(ground === 1){
+                        }else if (ground === 1) {
                             // positive y
                             x = Math.floor(Math.random() * (width - this.obstSize));
                             y = height - this.obstSize;
-                        }else if(ground === 0){
+                        }else if (ground === 0) {
                             // negative y
                             x = Math.floor(Math.random() * (width - this.obstSize));
                             y = 0;
@@ -820,7 +842,7 @@
 
                         var collisionTester = new Obstacle(x, y, this.obstSize);
 
-                        if(!collisionTester.collidingWith(player))
+                        if (!collisionTester.collidingWith(player))
                             valid = true;
                         else
                             ground = Math.floor(Math.random()*4);
@@ -828,12 +850,12 @@
                     // adds an obstacle to the list if it's not full
                     // if it is, reuses an object
                     // only does any of that if there's enough space
-                    if(this.obstacles.length < this.obstLimit){
+                    if (this.obstacles.length < this.obstLimit) {
                         this.obstacles.push(new Obstacle(x, y, this.obstSize));
                     }else{
                         var spawned = false;
-                        for(var i = 0; i < this.obstLimit && !spawned; i++){
-                            if(!this.obstacles[i].alive){
+                        for(var i = 0; i < this.obstLimit && !spawned; i++) {
+                            if (!this.obstacles[i].alive) {
                                 this.obstacles[i].position = new Vector(x,y);
                                 this.obstacles[i].alive = true;
                                 this.obstacles[i].birthTime = Date.now();
@@ -843,15 +865,15 @@
                     }
                 };
 
-                this.update = function(player){
-                    for(var i = 0; i < this.obstacles.length; i++){
-                        if(this.obstacles[i].alive){
-                            if(this.obstacles[i].collidingWith(player)){
+                this.update = function (player) {
+                    for(var i = 0; i < this.obstacles.length; i++) {
+                        if (this.obstacles[i].alive) {
+                            if (this.obstacles[i].collidingWith(player)) {
                                 // player collided with an obstacle - death
                                 return true;
                             }
-                            if(!this.obstacles[i].permanent &&
-                                Date.now() - this.obstacles[i].birthTime > this.lifeSpan){
+                            if (!this.obstacles[i].permanent &&
+                                Date.now() - this.obstacles[i].birthTime > this.lifeSpan) {
                                 this.obstacles[i].alive = false;
                             }
                         }
@@ -859,23 +881,25 @@
                     return false;
                 };
 
-                this.render = function(ctx){
-                    this.obstacles.forEach(function(obst){
-                        if(obst.alive)
+                this.render = function (ctx) {
+                    this.obstacles.forEach(function (obst) {
+                        if (obst.alive)
                             obst.draw(ctx);
                     });
                 };
 
-                this.reset = function(){
-                    this.obstacles.forEach(function(obst){
+                this.reset = function () {
+                    this.obstacles.forEach(function (obst) {
                         obst.alive = false;
                         obst.permanent = false;
                     });
                 };
-            };
+            }
 
             // class for the player of the game
-            function Player(x,y,size){
+            function Player(x,y,size) {
+                "use strict";
+
                 // inheritance
                 this.prototype = SQEntity.prototype;
                 
@@ -884,7 +908,7 @@
                 this.velocity  = new Vector(0,0);
                 this.canJump = true;
 
-                this.update = function(){
+                this.update = function () {
                     this.position.addTo(this.velocity);
                     // makes sure position is an integer
                     this.position.x = (this.position.x) | 0;
@@ -892,49 +916,49 @@
                 };
 
                 // accelerates the player by a vector
-                this.accel = function(amount){
+                this.accel = function (amount) {
                     this.velocity.addTo(amount);
                 };
 
                 // moves the player by a vectorial amount
-                this.move = function(amount){
+                this.move = function (amount) {
                     this.position.addTo(amount);
                 };
 
                 // abstraction of a player jump
-                this.jump = function(jumpSpeed, gravDir){
+                this.jump = function (jumpSpeed, gravDir) {
                     var quant = gravDir.multiply(-1) || new Vector(0,-1);
                     quant.multiplyBy(jumpSpeed);
-                    if(this.canJump && quant){
+                    if (this.canJump && quant) {
                         this.canJump = false;
                         this.accel(quant);
                         self = this;
-                        setTimeout(function(){self.canJump = true}, 300);
+                        setTimeout(function () {self.canJump = true}, 300);
                     }
                 };
 
                 // applies gravity
-                this.addGrav = function(gravity, dir){
+                this.addGrav = function (gravity, dir) {
                     var direction = dir || {x: 1, y: 1};
-                    if(direction.x != 0 && direction.y != 0)
+                    if (direction.x != 0 && direction.y != 0)
                         this.accel(gravity);
-                    else if(direction.x != 0)
+                    else if (direction.x != 0)
                         this.accel(gravity.xComponent());
-                    else if(direction.y != 0)
+                    else if (direction.y != 0)
                         this.accel(gravity.yComponent());
 
                 };
 
                 // stops player movement in a given direction
-                this.stop = function(direction){
-                    if(direction.x != 0)
+                this.stop = function (direction) {
+                    if (direction.x != 0)
                         this.velocity.x = 0;
-                    if(direction.y != 0)
+                    if (direction.y != 0)
                         this.velocity.y = 0;
                 };
 
                 // draws the player in the correct positiom
-                this.draw = function(ctx){
+                this.draw = function (ctx) {
                     var lastFill   = ctx.fillStyle,
                         lastStroke = ctx.strokeStyle;
                     ctx.fillStyle = "#FF0000";
@@ -948,13 +972,15 @@
                     ctx.fillStyle = lastFill;
                     ctx.strokeStyle = lastStroke;
                 };
-            };
+            }
 
-            function main(){
+            function main() {
+                "use strict";
+
                 var canvas = document.getElementById("game");
                 var f = new Game(canvas,canvas.width);
                 f.startGame();
-            };
+            }
 
             window.onload = main;
         </script>
