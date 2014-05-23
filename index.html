@@ -297,6 +297,10 @@
                 this.y = y;
 
                 this.onEnter = function () {
+                    this.gravity.setAngle(0);
+                    this.nextAngle = 0;
+                    this.betweenRot = false;
+
                     var self = this;
 
                     // redefine function to avoid "this" issues
@@ -375,6 +379,7 @@
                 };
 
                 this.update = function () {
+                    console.log(this.gravity.getAngle());
                     this.render(this.ctx);
                     var shouldStop = this.step();
                     if (shouldStop) {
