@@ -66,7 +66,7 @@
                 };
 
                 this.rotate = function (angle) {
-                    var result = this;
+                    var result = new Vector(this.x, this.y);
                     result.rotateBy(angle);
                     return result;
                 };
@@ -358,13 +358,13 @@
                     this.obstaclePool.addObstacle(new Obstacle(this.x + this.width - obstSize,
                                                   this.y + this.height - obstSize,obstSize),this.x, this.y);
 
-                    // starts the random spawning of obstacles
+                    /*/ starts the random spawning of obstacles
                     this.spawnId = window.setTimeout(
                     (function spawn() {
                         this.obstaclePool.spawn(this.width, this.height, this.x, this.y, this.player);
                         this.spawnId = window.setTimeout(spawn.bind(this), Math.floor(Math.random() * 3000) + 1000);
                     }).bind(this),
-                    Math.floor(Math.random() * 3000) + 1000);
+                    Math.floor(Math.random() * 3000) + 1000);*/
                 };
 
                 this.onExit = function () {this.obstaclePool.spawn(this.width, this.height, this.x, this.y, this.player);
@@ -471,14 +471,14 @@
                         if (this.gravity.getAngle() < this.nextAngle) {
                             this.gravity.rotateBy(this.rotDir * this.gravAngSpd);
                             // if it rotates more than needed, corrects the angle
-                            if (this.gravity.getAngle() > this.nextAngle) {
+                            if (this.gravity.getAngle() >= this.nextAngle) {
                                 this.gravity.setAngle(this.nextAngle);
                                 this.lastRotation = Date.now();
                             }
                         }else if (this.gravity.getAngle() > this.nextAngle) {
                             this.gravity.rotateBy(this.rotDir * this.gravAngSpd);
                             // if it rotates more than needed, corrects the angle
-                            if (this.gravity.getAngle() < this.nextAngle) {
+                            if (this.gravity.getAngle() <= this.nextAngle) {
                                 this.gravity.setAngle(this.nextAngle);
                                 this.lastRotation = Date.now();
                             }
@@ -492,13 +492,13 @@
                             while(!this.rotDir)
                                 this.rotDir = Math.floor((Math.random()*3) - 1);
                             if (this.rotDir > 0) {
-                                this.nextAngle = this.gravity.getAngle() + Math.PI/2;
-                                if (this.nextAngle >= Math.PI)
-                                    this.nextAngle = this.nextAngle % Math.PI;
+                                this.nextAngle = this.gravity.rotate(Math.PI / 2).getAngle();
+                                if (this.nextAngle >= 3.1372293304599146)
+                                    this.nextAngle = -1 * Math.PI;
                             }else{
-                                this.nextAngle = this.gravity.getAngle() - Math.PI/2;
-                                if (this.nextAngle <= -1 * Math.PI)
-                                    this.nextAngle = this.nextAngle % Math.PI;
+                                this.nextAngle = this.gravity.rotate(-1 * Math.PI / 2).getAngle();
+                                if (this.nextAngle >= -1 * 3.1372293304599146)
+                                    this.nextAngle = Math.PI;
                             }
                         }).bind(this) , Math.floor(Math.random() * 15) * 1000);
                     }
