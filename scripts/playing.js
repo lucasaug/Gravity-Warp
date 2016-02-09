@@ -118,13 +118,13 @@ function PlayingGameState(canvas, x, y, width, height, bCanvas, ctx) {
         this.obstaclePool.addObstacle(new Obstacle(this.x + this.width - obstSize,
                                       this.y + this.height - obstSize,obstSize),this.x, this.y);
 
-        /*/ starts the random spawning of obstacles
+        // starts the random spawning of obstacles
         this.spawnId = window.setTimeout(
         (function spawn() {
             this.obstaclePool.spawn(this.width, this.height, this.x, this.y, this.player);
             this.spawnId = window.setTimeout(spawn.bind(this), Math.floor(Math.random() * 3000) + 1000);
         }).bind(this),
-        Math.floor(Math.random() * 3000) + 1000);*/
+        Math.floor(Math.random() * 3000) + 1000);
     };
 
     this.onExit = function () {this.obstaclePool.spawn(this.width, this.height, this.x, this.y, this.player);
@@ -227,6 +227,7 @@ function PlayingGameState(canvas, x, y, width, height, bCanvas, ctx) {
         // checks if gravity should be rotated
         // if so, rotates it in the correct direction
         // if not, randomly decides if should start rotating now
+        console.log(this.nextAngle);
         if (this.gravity.getAngle() !== this.nextAngle) {
             if (this.gravity.getAngle() < this.nextAngle) {
                 this.gravity.rotateBy(this.rotDir * this.gravAngSpd);
@@ -242,6 +243,10 @@ function PlayingGameState(canvas, x, y, width, height, bCanvas, ctx) {
                     this.gravity.setAngle(this.nextAngle);
                     this.lastRotation = Date.now();
                 }
+            }
+            if(this.gravity.getAngle() >= this.nextAngle - 0.01 && this.gravity.getAngle() <= this.nextAngle + 0.01) {
+                this.gravity.setAngle(this.nextAngle);
+                this.lastRotation = Date.now();
             }
 
         }else if (Date.now() - this.lastRotation > 5000 && !this.betweenRot) {
@@ -260,12 +265,12 @@ function PlayingGameState(canvas, x, y, width, height, bCanvas, ctx) {
                     if (this.nextAngle >= -1 * 3.1372293304599146)
                         this.nextAngle = Math.PI;
                 }
-            }).bind(this) , Math.floor(Math.random() * 15) * 1000);
+            }).bind(this) , Math.floor(Math.random() * 5) * 1000);
         }
     };
 
     // regulates the jumping and collisions with the field
-    // aplies gravity
+    // applies gravity
     this.jumpGravStabilize = function () {
         var vel = { x: this.player.velocity.x,
                     y: this.player.velocity.y },

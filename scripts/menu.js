@@ -1,5 +1,6 @@
 // Initial GameState, draws game menu
 // time only needs to be set if gameOver is true
+
 function MenuGameState(canvas, x, y, width, height, bCanvas, ctx, gameOver, time) {
     // TODO ALGUMA FORMA DE PASSAR O TEMPO
     "use strict";
